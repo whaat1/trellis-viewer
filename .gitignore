@@ -1,0 +1,25 @@
+.DS_Store
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+.perf-fixtures/
+.perf-results/
+.tooling/
+playwright-report/
+test-results/
+*.log
+__pycache__/
+*.tsbuildinfo
+trellis-card/
+
+# Release output and local development context
+release/
+.pnpm-store/
+.env
+.env.*
+!.env.example
+/.agents/
+/.codex/
+/.trellis/
+/AGENTS.md

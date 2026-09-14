@@ -1,0 +1,13 @@
+{
+  "id": "09-01-workbench",
+  "name": "09-01-workbench",
+  "title": "工作台体验优化",
+  "status": "in_progress",
+  "parent": null,
+  "children": [
+    "09-02-requirements",
+    "09-03-reader",
+    "09-04-review"
+  ],
+  "createdAt": "2026-09-01"
+}

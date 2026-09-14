@@ -1,0 +1,26 @@
+.workspace.with-navigation { grid-template-columns: 60px 190px minmax(0, 1fr); }
+.workspace.with-navigation.calendar-active { grid-template-columns: 60px minmax(0, 1fr); }
+.workspace-icon { display: block; flex: none; }
+.view-rail { display: flex; flex-direction: column; align-items: center; gap: 10px; background: var(--sidebar); border-right: 1px solid var(--border); padding: 24px 6px; }
+.rail-brand { display: grid; place-items: center; width: 28px; height: 30px; color: var(--accent); margin-bottom: 25px; }
+.view-rail button { width: 46px; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 2px; border-radius: 8px; color: var(--muted); font-size: 10px; }
+.view-rail button svg { width: 21px; height: 21px; }
+.view-rail button:hover { background: var(--hover); }
+.view-rail button.active { color: var(--accent); background: var(--accent-soft); }
+.project-list .project-navigation-row { display: flex; align-items: center; gap: 2px; position: relative; margin: 2px 0; padding-right: 4px; border-radius: 7px; }
+.project-list .project-navigation-row.active { background: var(--surface); box-shadow: 0 1px 3px #1118270a; }
+.project-list .project-navigation-row:hover:not(.active) { background: var(--hover); }
+.project-list .project-navigation-row .project-item { flex: 1; min-width: 0; margin: 0; background: transparent; box-shadow: none; line-height: 20px; }
+.project-list .project-navigation-row .project-item.active { color: var(--project-color); }
+.project-navigation-row .project-symbol { border-color: currentColor; line-height: 1; }
+.project-navigation-row .project-color-picker { flex: none; }
+.projects-label .icon-button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; }
+.projects .add-project { display: flex; align-items: center; gap: 7px; line-height: 20px; }
+.project-color-picker { position: relative; }
+.project-color-trigger { width: 25px; height: 30px; display: grid; place-items: center; padding: 0; }
+.project-color-trigger span { width: 10px; height: 10px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 2px var(--surface); }
+.project-color-trigger:hover span { transform: scale(1.2); }
+.project-color-options { position: fixed; z-index: 80; width: 150px; display: grid; grid-template-columns: repeat(4, 26px); gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); box-shadow: 0 6px 20px #0002; }
+.project-color-options button { width: 26px; height: 26px; border-radius: 50%; color: white; font-size: 14px; }
+.project-color-options button[aria-pressed=true] { outline: 2px solid var(--ink); outline-offset: 2px; }
+.calendar-loading { display: grid; place-items: center; flex: 1; color: var(--muted); }

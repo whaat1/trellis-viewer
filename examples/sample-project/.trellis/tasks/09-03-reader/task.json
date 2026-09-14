@@ -1,0 +1,9 @@
+{
+  "id": "09-03-reader",
+  "name": "09-03-reader",
+  "title": "实现任务阅读视图",
+  "status": "completed",
+  "parent": "09-01-workbench",
+  "children": [],
+  "createdAt": "2026-09-01"
+}

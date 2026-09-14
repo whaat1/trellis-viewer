@@ -1,0 +1,9 @@
+{
+  "id": "09-12-package",
+  "name": "09-12-package",
+  "title": "制作并验证安装包",
+  "status": "planning",
+  "parent": "09-10-release",
+  "children": [],
+  "createdAt": "2026-09-01"
+}

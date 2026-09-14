@@ -1,0 +1,120 @@
+/* Higher specificity keeps these compact styles independent of legacy globals. */
+.task-area.compact-task-area {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: 12px 20px 6px;
+  gap: 8px;
+}
+.compact-task-area .task-area-heading {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  gap: 18px;
+  margin: 0;
+}
+.compact-task-area .task-area-heading h1 {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 17px;
+  line-height: 28px;
+  letter-spacing: -.3px;
+}
+.compact-task-area .status-tabs {
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+  margin: 0;
+  padding: 1px;
+}
+.compact-task-area .status-tabs button {
+  gap: 5px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.compact-task-area .status-tabs button span { font-size: 10px; }
+.compact-task-area .project-task-progress {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 14px;
+  min-width: 0;
+}
+.compact-task-area .project-status-meter {
+  display: flex;
+  flex: 1;
+  height: 10px;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--border);
+  gap: 2px;
+}
+.compact-task-area .project-status-segment { height: 100%; min-width: 2px; }
+.compact-task-area .project-completion {
+  display: flex;
+  align-items: baseline;
+  flex-shrink: 0;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.compact-task-area .project-completion strong {
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.compact-task-area .project-status-legend {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 14px;
+}
+.compact-task-area .project-status-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.compact-task-area .project-status-legend b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.compact-task-area .status-unknown { background: #b69291; }
+.compact-task-area .task-grid-scroll {
+  flex: 1;
+  min-height: 72px;
+  height: auto;
+}
+.compact-task-area .task-grid-row { gap: 8px; padding-bottom: 8px; }
+.compact-task-area .task-card {
+  height: 64px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  gap: 7px;
+}
+.compact-task-area .task-card strong { font-size: 12px; line-height: 16px; }
+.compact-task-area .task-card-top { line-height: 12px; }
+.task-tree .tree-row { line-height: 20px; }
+.task-tree .tree-scroll { scrollbar-gutter: stable; overflow-anchor: none; }
+.task-tree .tree-chevron, .task-tree .tree-icon { display: inline-flex; align-items: center; justify-content: center; height: 20px; }
+.task-tree .tree-chevron { width: 12px; }
+.task-tree .tree-icon { width: 16px; }
+
+.tree-row.is-root { font-weight: 600; }
+.tree-row.children { font-weight: 550; border-top: 1px solid var(--border); }
+.tree-row:not(button):hover { background: transparent; }
+.tree-task-check { display: grid; place-items: center; width: 14px; height: 14px; margin-inline: 3px; flex: 0 0 14px; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); font-size: 11px; line-height: 1; }
+.tree-task-check svg { display: block; width: 12px; height: 12px; }
+.tree-task-check.is-checked { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.tree-row.is-completed .tree-label, .tree-row.is-cancelled .tree-label { color: var(--muted); opacity: .65; }
+.tree-task-meta { color: var(--muted); font-size: 9px; white-space: nowrap; }

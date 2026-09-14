@@ -1,0 +1,21 @@
+.workspace-panes {
+  --tasks-height: 240px;
+  --tree-width: 260px;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.workspace-panes .task-pane { height: var(--tasks-height); flex: none; min-height: 0; }
+.workspace-panes .reading-columns { grid-template-columns: var(--tree-width) 7px minmax(0, 1fr); }
+.workspace-panes .task-tree { border-right: 0; }
+.pane-divider { position: relative; flex: none; background: var(--bg); touch-action: none; outline: none; }
+.pane-divider.horizontal { height: 7px; cursor: row-resize; border-top: 1px solid var(--border); }
+.pane-divider.vertical { width: 7px; cursor: col-resize; border-left: 1px solid var(--border); }
+.pane-divider::after { content: ''; position: absolute; background: var(--border); border-radius: 4px; }
+.pane-divider.horizontal::after { width: 34px; height: 2px; left: calc(50% - 17px); top: 2px; }
+.pane-divider.vertical::after { height: 34px; width: 2px; top: calc(50% - 17px); left: 2px; }
+.pane-divider:hover, .pane-divider:focus-visible, .pane-divider[data-dragging] { background: var(--accent-soft); }
+.pane-divider:hover::after, .pane-divider:focus-visible::after, .pane-divider[data-dragging]::after { background: var(--accent); }

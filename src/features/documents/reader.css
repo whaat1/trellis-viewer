@@ -1,0 +1,6 @@
+.reader .file-icon { display: grid; place-items: center; width: 20px; height: 20px; flex: 0 0 20px; line-height: 1; }
+.reader-status { max-width: 190px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-body { display: flex; flex: 1; min-height: 0; position: relative; }
+.reader .document-scroll { min-width: 0; overflow-anchor: none; }
+.reader-messages { position: absolute; top: 8px; left: 18px; right: 18px; z-index: 3; display: grid; gap: 6px; max-height: 40%; overflow: auto; }
+.reader-messages > div { border-radius: 6px; box-shadow: 0 2px 8px #0001; }

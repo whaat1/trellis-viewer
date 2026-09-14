@@ -1,0 +1,11 @@
+{
+  "identifier": "main-window",
+  "description": "Read-only task viewer window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-focus"
+  ]
+}

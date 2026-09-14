@@ -1,0 +1,12 @@
+{
+  "id": "09-10-release",
+  "name": "09-10-release",
+  "title": "准备公开试用版",
+  "status": "planning",
+  "parent": null,
+  "children": [
+    "09-11-docs",
+    "09-12-package"
+  ],
+  "createdAt": "2026-09-01"
+}
