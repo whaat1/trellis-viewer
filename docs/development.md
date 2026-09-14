@@ -1,6 +1,6 @@
 # 开发与构建
 
-需要 Apple Silicon Mac、Xcode Command Line Tools、Rust、Node.js 20.19+、Python 3 和 pnpm 10。
+需要 Rust、Node.js 20.19+、Python 3 和 pnpm 10。macOS 构建还需要 Apple Silicon Mac 与 Xcode Command Line Tools；Windows 构建需要 Windows 11 x64、Microsoft C++ Build Tools 和 WebView2。
 
 ```sh
 pnpm install --frozen-lockfile
@@ -20,6 +20,14 @@ pnpm build
 ```
 
 Rust IPC 类型发生变化后，运行 `cargo run --manifest-path src-tauri/Cargo.toml --bin export-contracts` 并提交生成的 TypeScript 契约。
+
+## 发布 Windows 安装包
+
+```powershell
+pnpm release:windows
+```
+
+该命令生成未签名的 Windows 11 x64 NSIS 安装包，默认按当前用户安装；缺少 WebView2 时安装器会联网补装。产物位于 `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`。当前流程仅用于本机验证，不上传文件。
 
 ## 发布 DMG
 

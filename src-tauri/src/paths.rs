@@ -11,6 +11,11 @@ pub fn io(error: std::io::Error) -> String {
     format!("IO_ERROR: {error}")
 }
 
+pub fn key_from_path(path: &Path) -> String {
+    path.to_string_lossy()
+        .replace(std::path::MAIN_SEPARATOR, "/")
+}
+
 pub fn tasks_root(project: &Project) -> Result<PathBuf> {
     // Explicit .trellis/tasks root links are accepted. Descendants cannot escape it.
     Path::new(&project.path)
@@ -66,11 +71,7 @@ pub fn document_tree(task: &Path) -> Result<Vec<DocEntry>> {
                 .extension()
                 .is_some_and(|e| e.eq_ignore_ascii_case("md"))
             {
-                let key = path
-                    .strip_prefix(root)
-                    .map_err(|e| e.to_string())?
-                    .to_string_lossy()
-                    .to_string();
+                let key = key_from_path(path.strip_prefix(root).map_err(|e| e.to_string())?);
                 out.push(DocEntry {
                     name: entry.file_name().to_string_lossy().to_string(),
                     path: key.clone(),
@@ -112,14 +113,10 @@ pub fn read_document(task: &Path, task_key: String, key: String) -> Result<Docum
 mod tests {
     use super::*;
     #[test]
-    fn rejects_traversal_and_escaping_symlink_without_writes() {
+    fn rejects_traversal_without_writes() {
         let dir = tempfile::tempdir().unwrap();
-        let outside = tempfile::tempdir().unwrap();
-        fs::write(outside.path().join("secret.md"), "private").unwrap();
         fs::write(dir.path().join("prd.md"), "hello").unwrap();
-        std::os::unix::fs::symlink(outside.path(), dir.path().join("outside")).unwrap();
         assert!(contained(&dir.path().canonicalize().unwrap(), "../secret.md").is_err());
-        assert!(contained(&dir.path().canonicalize().unwrap(), "outside/secret.md").is_err());
         assert!(contained(&dir.path().canonicalize().unwrap(), "/etc/passwd").is_err());
         let before = fs::metadata(dir.path().join("prd.md"))
             .unwrap()
@@ -148,6 +145,15 @@ mod tests {
                 .unwrap(),
             before
         );
+    }
+    #[cfg(unix)]
+    #[test]
+    fn rejects_escaping_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        fs::write(outside.path().join("secret.md"), "private").unwrap();
+        std::os::unix::fs::symlink(outside.path(), dir.path().join("outside")).unwrap();
+        assert!(contained(&dir.path().canonicalize().unwrap(), "outside/secret.md").is_err());
     }
     #[test]
     fn enumerates_deep_documents_without_twenty_four_limit() {
