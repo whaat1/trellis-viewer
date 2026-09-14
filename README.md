@@ -57,3 +57,5 @@
 本项目使用 [MIT License](LICENSE)。第三方组件保留各自许可证，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 这是围绕 Trellis 工作流开发的独立社区工具。感谢 [trellis-card](https://github.com/czm15053/trellis-card) 提供的产品灵感；本项目独立实现任务阅读与排期功能，参考仓库不参与构建。
+
+社区友链：[LINUX DO](https://linux.do/) — 感谢社区提供开源作品交流与分享的平台。
