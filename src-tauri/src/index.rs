@@ -1,7 +1,7 @@
 use crate::{
     contracts::{Changes, Snapshot, TaskSummary},
     domain::{self, RawTask},
-    paths::Result,
+    paths::{self, Result},
 };
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -286,13 +286,9 @@ impl Index {
         if parts.len() < n {
             return None;
         }
-        Some(
-            parts[..n]
-                .iter()
-                .collect::<PathBuf>()
-                .to_string_lossy()
-                .to_string(),
-        )
+        Some(paths::key_from_path(
+            &parts[..n].iter().collect::<PathBuf>(),
+        ))
     }
 }
 
