@@ -1,5 +1,6 @@
+import { ProjectContextMenu } from './ProjectContextMenu';
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { useStore, initialize, activateProject, addProject, removeProject, reorderProjects, selectRoot, ensureTree, selectDocument } from '../state/store';
+import { useStore, initialize, activateProject, addProject, reorderProjects, selectRoot, ensureTree, selectDocument } from '../state/store';
 import { demoMode } from '../bridge/api';
 import { WorkspaceLayout } from './WorkspaceLayout';
 import { PerformancePanel } from '../features/performance/PerformancePanel';
@@ -51,7 +52,7 @@ function Workspace() {
       const color = getProjectColor(item.id, settings);
       const sourceIndex = projects.findIndex(project => project.id === draggedProject.current);
       const dropEdge = projectDropTarget === item.id ? sourceIndex < projects.indexOf(item) ? 'after' : 'before' : undefined;
-      return <div draggable className={`project-navigation-row ${item.id === projectId ? 'active' : ''}`} key={item.id} data-drop-edge={dropEdge}
+      return <ProjectContextMenu project={item} draggable className={`project-navigation-row ${item.id === projectId ? 'active' : ''}`} key={item.id} data-drop-edge={dropEdge}
         onDragStart={event => { draggedProject.current = item.id; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/project-id', item.id); }}
         onDragOver={event => {
           if (!projects.some(project => project.id === draggedProject.current) || draggedProject.current === item.id) { setProjectDropTarget(''); return; }
@@ -68,8 +69,7 @@ function Workspace() {
         }}>
         <button className={`project-item ${item.id === projectId ? 'active' : ''}`} style={{ '--project-color': color } as CSSProperties} onClick={() => { navigation.current++; void activateProject(item.id); }} title={item.path}><span className="project-symbol" style={{ color }}>{item.name.slice(0, 1).toUpperCase()}</span><span>{item.name}</span></button>
         <ProjectColorPicker name={item.name} color={color} disabled={saving} onChange={value => setProjectColor(item.id, value)}/>
-        <button aria-label={`移除项目 ${item.name}`} onClick={() => void removeProject(item.id)}>×</button>
-      </div>;
+      </ProjectContextMenu>;
     })}</nav><button className="add-project" onClick={() => void addProject()}><WorkspaceIcon name="plus"/>添加本地项目</button><div className="project-bottom">{demoMode && <strong className="demo-label">浏览器演示 · 合成数据</strong>}</div></aside>}
     <main className="main-workspace">
       {autoBenchmark && <PerformancePanel/>}

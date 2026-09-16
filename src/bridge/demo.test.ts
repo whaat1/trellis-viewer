@@ -80,3 +80,15 @@ describe('demo project registry', () => {
     expect(await demoInvoke('get_bootstrap')).toEqual(initial);
   });
 });
+
+it('demo removal and re-add preserve project identity and settings', async () => {
+  const { demoInvoke } = await import('./demo');
+  const original = await demoInvoke<PlannerSettings>('get_planner_settings');
+  await demoInvoke('remove_project', { projectId: 'explicit-browser-demo' });
+  const removed = await demoInvoke<{ projects: { id: string }[] }>('get_bootstrap');
+  expect(removed.projects.some(project => project.id === 'explicit-browser-demo')).toBe(false);
+  await demoInvoke('choose_and_add_project');
+  const restored = await demoInvoke<{ projects: { id: string }[] }>('get_bootstrap');
+  expect(restored.projects.some(project => project.id === 'explicit-browser-demo')).toBe(true);
+  expect(await demoInvoke('get_planner_settings')).toEqual(original);
+});

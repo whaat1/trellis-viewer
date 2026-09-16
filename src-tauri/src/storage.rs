@@ -12,6 +12,8 @@ use std::{
 #[serde(rename_all = "camelCase")]
 struct Registry {
     projects: Vec<Project>,
+    #[serde(default)]
+    removed_projects: Vec<Project>,
 }
 
 pub struct Storage {
@@ -20,11 +22,13 @@ pub struct Storage {
     pub persistent: Vec<Project>,
     registry_error: Option<String>,
     fixture_mode: bool,
+    removed_projects: Vec<Project>,
 }
 impl Storage {
-    fn persist(&mut self, next: Vec<Project>) -> Result<()> {
+    fn persist(&mut self, next: Vec<Project>, removed: Vec<Project>) -> Result<()> {
         if self.fixture_mode {
             self.projects = next;
+            self.removed_projects = removed;
             return Ok(());
         }
         if let Some(error) = &self.registry_error {
@@ -34,6 +38,7 @@ impl Storage {
         let temporary = self.data_dir.join("projects.json.tmp");
         let bytes = serde_json::to_vec_pretty(&Registry {
             projects: next.clone(),
+            removed_projects: removed.clone(),
         })
         .map_err(|e| e.to_string())?;
         use std::io::Write;
@@ -41,22 +46,24 @@ impl Storage {
         file.write_all(&bytes).map_err(io)?;
         file.sync_all().map_err(io)?;
         fs::rename(temporary, self.data_dir.join("projects.json")).map_err(io)?;
+        self.removed_projects = removed;
         self.persistent = next.clone();
         self.projects = next;
         Ok(())
     }
     pub fn new(data_dir: PathBuf) -> Self {
-        let (persistent, registry_error) = match fs::read(data_dir.join("projects.json")) {
+        let (registry, registry_error) = match fs::read(data_dir.join("projects.json")) {
             Ok(bytes) => match serde_json::from_slice::<Registry>(&bytes) {
-                Ok(registry) => (registry.projects, None),
+                Ok(registry) => (registry, None),
                 Err(e) => (
-                    vec![],
+                    Registry::default(),
                     Some(format!("INVALID_REGISTRY: existing config preserved: {e}")),
                 ),
             },
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (vec![], None),
-            Err(e) => (vec![], Some(io(e))),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (Registry::default(), None),
+            Err(e) => (Registry::default(), Some(io(e))),
         };
+        let persistent = registry.projects;
         let fixture_paths = std::env::var("TRELLIS_PERF_PROJECTS").ok();
         let projects = registered_projects(&persistent, fixture_paths.as_deref());
         Self {
@@ -65,6 +72,11 @@ impl Storage {
             persistent,
             registry_error,
             fixture_mode: fixture_paths.is_some(),
+            removed_projects: if fixture_paths.is_some() {
+                vec![]
+            } else {
+                registry.removed_projects
+            },
         }
     }
     pub fn add(&mut self, path: &Path) -> Result<Project> {
@@ -75,22 +87,37 @@ impl Storage {
         if let Some(existing) = self.projects.iter().find(|p| p.path == project.path) {
             return Ok(existing.clone());
         }
+        let mut removed = self.removed_projects.clone();
+        let project = if let Some(index) = removed.iter().position(|old| old.path == project.path) {
+            Project {
+                id: removed.remove(index).id,
+                ..project
+            }
+        } else {
+            project
+        };
         let mut next = self.projects.clone();
         next.push(project.clone());
-        self.persist(next)?;
+        self.persist(next, removed)?;
         Ok(project)
     }
     pub fn remove(&mut self, id: &str) -> Result<()> {
-        if !self.projects.iter().any(|project| project.id == id) {
-            return Err("PROJECT_UNAVAILABLE: unregistered project".into());
-        }
+        let project = self
+            .projects
+            .iter()
+            .find(|project| project.id == id)
+            .cloned()
+            .ok_or("PROJECT_UNAVAILABLE: unregistered project")?;
+        let mut removed = self.removed_projects.clone();
+        removed.retain(|old| old.path != project.path);
+        removed.push(project);
         let next = self
             .projects
             .iter()
             .filter(|p| p.id != id)
             .cloned()
             .collect();
-        self.persist(next)
+        self.persist(next, removed)
     }
     pub fn reorder(&mut self, ids: &[String]) -> Result<()> {
         let unique: std::collections::HashSet<_> = ids.iter().collect();
@@ -106,7 +133,7 @@ impl Storage {
             .iter()
             .filter_map(|id| self.projects.iter().find(|p| &p.id == id).cloned())
             .collect();
-        self.persist(next)
+        self.persist(next, self.removed_projects.clone())
     }
 }
 fn project_from_path(path: &Path) -> Result<Project> {
@@ -150,6 +177,54 @@ fn registered_projects(persistent: &[Project], fixture_paths: Option<&str>) -> V
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn removal_survives_restart_and_restores_identity_without_touching_source_or_planner() {
+        let data = tempfile::tempdir().unwrap();
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir(source.path().join(".trellis")).unwrap();
+        fs::write(source.path().join("keep.txt"), "source").unwrap();
+        let mut storage = Storage::new(data.path().into());
+        let project = storage.add(source.path()).unwrap();
+        let planner = format!(
+            r##"{{"projectColors":{{"{}":"#123456"}},"schedules":[{{"projectId":"{}"}}]}}"##,
+            project.id, project.id
+        );
+        fs::write(data.path().join("planner.json"), &planner).unwrap();
+        storage.remove(&project.id).unwrap();
+        assert!(storage.projects.is_empty());
+        assert!(storage.remove(&project.id).is_err());
+        let mut reopened = Storage::new(data.path().into());
+        assert!(reopened.projects.is_empty());
+        assert_eq!(reopened.add(source.path()).unwrap().id, project.id);
+        assert_eq!(reopened.add(source.path()).unwrap().id, project.id);
+        assert_eq!(reopened.projects.len(), 1);
+        assert_eq!(
+            fs::read_to_string(data.path().join("planner.json")).unwrap(),
+            planner
+        );
+        assert_eq!(
+            fs::read_to_string(source.path().join("keep.txt")).unwrap(),
+            "source"
+        );
+    }
+
+    #[test]
+    fn old_registry_is_compatible_and_failed_remove_keeps_active_state() {
+        let data = tempfile::tempdir().unwrap();
+        fs::write(
+            data.path().join("projects.json"),
+            r#"{"projects":[{"id":"old","name":"旧项目","path":"/old"}]}"#,
+        )
+        .unwrap();
+        let mut storage = Storage::new(data.path().into());
+        // 用目录占用临时文件位置，确定性模拟持久化失败。
+        fs::create_dir(data.path().join("projects.json.tmp")).unwrap();
+        assert!(storage.remove("old").is_err());
+        assert_eq!(storage.projects[0].id, "old");
+        assert!(storage.removed_projects.is_empty());
+        assert_eq!(Storage::new(data.path().into()).projects[0].id, "old");
+    }
+
     fn setup() -> (tempfile::TempDir, Storage) {
         let dir = tempfile::tempdir().unwrap();
         let mut storage = Storage::new(dir.path().join("settings"));

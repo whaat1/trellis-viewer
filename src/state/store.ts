@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { forgetCalendarProject } from './planner';
 import { api, errorText, metrics } from '../bridge/api';
 import type { Project, Invalidated, DocEntry, Snapshot } from '../generated/contracts';
 import { fromSnapshot, applyChanges, childGroupCollapseId, LatestRequest, type StatusFilter, type TaskIndex } from './model';
@@ -11,6 +12,7 @@ interface State {
 }
 export const useStore = create<State>(() => ({ projects: [], projectId: '', index: null, filter: 'all', rootKey: '', selectedDoc: null, docs: {}, treeVersions: {}, pendingRootKey: null, expanded: new Set(), documentVersions: {}, documentReset: 0, loading: true, error: '', diagnostics: [], scanMs: 0, autoBenchmark: false, autoBenchmarkRepeats: 1, autoBenchmarkSeconds: 60 }));
 const activation = new LatestRequest();
+const removedProjects = new Set<string>();
 let activating: { projectId: string; ticket: number; request: Promise<Snapshot> } | undefined;
 const pendingEvents = new Map<string, Invalidated>();
 let syncing = false;
@@ -34,6 +36,7 @@ function pruneRemovedTrees(state: State, index: TaskIndex): Partial<State> {
   return { docs, treeVersions };
 }
 export async function activateProject(projectId: string) {
+  if (removedProjects.has(projectId)) return;
   const old = useStore.getState();
   if (old.projectId === projectId && old.index && !old.loading && !old.error) return;
   if (old.projectId === projectId && old.loading && activating?.projectId === projectId && activation.current(activating.ticket)) {
@@ -71,6 +74,7 @@ export async function activateProject(projectId: string) {
 export async function initialize() {
   alive = true;
   const unsubscribe = await api.subscribe(event => {
+    if (removedProjects.has(event.projectId)) return;
     const previous = pendingEvents.get(event.projectId);
     if (!previous || previous.epoch !== event.epoch || previous.revision < event.revision) pendingEvents.set(event.projectId, event);
     retryCount = 0; void syncPending();
@@ -136,24 +140,11 @@ export async function addProject() {
   try {
     const project = await api.addProject();
     if (!project) return;
+    removedProjects.delete(project.id);
     useStore.setState(state => ({ projects: state.projects.some(p => p.id === project.id) ? state.projects : [...state.projects, project] }));
     await activateProject(project.id);
   } catch (error) { useStore.setState({ error: errorText(error) }); }
 }
-export async function removeProject(projectId: string) {
-  try {
-    const projects = await api.removeProject(projectId);
-    memory.delete(projectId); pendingEvents.delete(projectId);
-    const wasActive = useStore.getState().projectId === projectId;
-    useStore.setState({ projects, error: '' });
-    if (wasActive) {
-      activation.cancel(); activating = undefined;
-      useStore.setState({ projectId: '', index: null, docs: {}, treeVersions: {}, rootKey: '', pendingRootKey: null, selectedDoc: null, expanded: new Set(), documentVersions: {}, loading: false });
-      if (projects[0]) await activateProject(projects[0].id);
-    }
-  } catch (error) { useStore.setState({ error: errorText(error) }); }
-}
-
 export async function reorderProjects(projectIds: string[]) {
   try { const projects = await api.reorderProjects(projectIds); useStore.setState({ projects }); }
   catch (error) { useStore.setState({ error: errorText(error) }); }
@@ -248,4 +239,24 @@ export function selectDocument(taskKey: string, key: string) {
     return;
   }
   useStore.setState({ selectedDoc: { taskKey, key }, pendingRootKey: null, ...expansion });
+}
+
+export async function removeProject(projectId: string) {
+  // 等持久化成功才修改界面；等待期间用户仍可能切换到其他项目。
+  const projects = await api.removeProject(projectId);
+  removedProjects.add(projectId);
+  pendingEvents.delete(projectId);
+  memory.delete(projectId);
+  forgetCalendarProject(projectId);
+  const current = useStore.getState();
+  if (current.projectId !== projectId) { useStore.setState({ projects }); return; }
+  activation.cancel();
+  activating = undefined;
+  if (retryTimer) clearTimeout(retryTimer);
+  // 先撤销阅读目标和缓存，避免旧读取成功或失败覆盖移除后的空状态。
+  useStore.setState({ projects, projectId: '', index: null, docs: {}, treeVersions: {},
+    selectedDoc: null, rootKey: '', pendingRootKey: null, expanded: new Set(),
+    documentVersions: {}, documentReset: current.documentReset + 1,
+    loading: false, error: '', diagnostics: [], scanMs: 0, filter: 'all' });
+  if (projects[0]) await activateProject(projects[0].id);
 }

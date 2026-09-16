@@ -70,6 +70,12 @@ export async function demoInvoke<T>(command: string, args: Record<string, unknow
       if (!Array.isArray(ids) || ids.length !== demoProjects.length || new Set(ids).size !== ids.length || ids.some(id => !demoProjects.some(project => project.id === id))) throw new Error('INVALID_PROJECT_ORDER: projects must be a complete permutation');
       result = persistProjects(ids.map(id => demoProjects.find(project => project.id === id)!)); break;
     }
+    case 'reveal_project': throw new Error('浏览器演示无法在 Finder 中显示，请在桌面应用使用。');
+    case 'copy_project_path': {
+      const target = demoProjects.find(item => item.id === args.projectId);
+      if (!target) throw new Error('项目暂不可用');
+      await navigator.clipboard.writeText(target.path); break;
+    }
     case 'activate_project': case 'get_project_snapshot': result = args.projectId === secondProject.id ? { ...snapshot, projectId: secondProject.id, tasks: secondTasks, rootKeys: secondTasks.filter(task => !task.parentKey).map(task => task.key) } : snapshot; break;
     case 'get_project_changes': result = { projectId: project.id, epoch: 'demo', baseRevision: 1, revision: 1, resetRequired: false, upserts: [], removed: [], rootKeys: null, documentTaskKeys: [], diagnostics: [] }; break;
     case 'get_document_tree': result = docs; break;

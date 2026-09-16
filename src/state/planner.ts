@@ -105,3 +105,15 @@ function save(action: () => Promise<PlannerSettings>) {
 }
 export const setProjectColor = (projectId: string, color: string) => save(() => api.setProjectColor(projectId, color));
 export const updateSchedule = (input: ScheduleUpdate) => save(() => api.updateTaskSchedule(input));
+
+/** 只清运行时缓存；保留 settings 中的配色与排期供重新添加后恢复。 */
+export function forgetCalendarProject(projectId: string) {
+  generation++;
+  calendarRequest = undefined;
+  projectTickets.set(projectId, (projectTickets.get(projectId) ?? 0) + 1);
+  usePlanner.setState(state => {
+    const projectData = { ...state.projectData };
+    delete projectData[projectId];
+    return { projectData, loading: false, error: '' };
+  });
+}

@@ -101,6 +101,8 @@ export function CalendarView({ projects, projectData, settings, loading, saving,
     const scheduledKeys = new Map<string, Set<string>>();
     const projectMap = new Map(projects.map(project => [project.id, project]));
     for (const entry of settings.schedules) {
+      // 已移除项目的排期仍保存在设置中，但不再出现在活动日历。
+      if (!projectMap.has(entry.projectId)) continue;
       const tasks = projectData[entry.projectId]?.tasks ?? [];
       const task = resolveScheduledTask(entry, tasks);
       const keys = scheduledKeys.get(entry.projectId) ?? new Set<string>();
@@ -181,7 +183,7 @@ export function CalendarView({ projects, projectData, settings, loading, saving,
         </div>;
       })}</div>{!projects.length && <p className="calendar-project-empty">添加项目后，待安排任务会显示在这里。</p>}</div>
     </aside>
-    {moreDate && <DayDetails date={moreDate} entries={settings.schedules.filter(entry => validRange(entry.startDate, entry.endDate) && entry.startDate <= moreDate && entry.endDate >= moreDate)} views={views} settings={settings} onEdit={editEntry} onClose={() => setMoreDate(null)}/>}
+    {moreDate && <DayDetails date={moreDate} entries={settings.schedules.filter(entry => projects.some(project => project.id === entry.projectId) && validRange(entry.startDate, entry.endDate) && entry.startDate <= moreDate && entry.endDate >= moreDate)} views={views} settings={settings} onEdit={editEntry} onClose={() => setMoreDate(null)}/>}
     {editorItem && <ScheduleEditor key={editorItem.entry?.id ?? `${editorItem.projectId}:${editorItem.taskKey}`} item={editorItem} projectName={projects.find(project => project.id === editorItem.projectId)?.name ?? '未登记项目'} color={getProjectColor(editorItem.projectId, settings)} defaultDate={selectedDate} saving={saving} onSave={onSchedule} onClose={() => setEditor(null)} onOpenTask={() => { onOpenTask(editorItem.projectId, editorItem.taskKey); setEditor(null); }}/>}
   </section>;
 }
