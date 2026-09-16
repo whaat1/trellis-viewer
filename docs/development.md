@@ -27,7 +27,7 @@ Rust IPC 类型发生变化后，运行 `cargo run --manifest-path src-tauri/Car
 pnpm release:windows
 ```
 
-该命令生成未签名的 Windows 11 x64 NSIS 安装包，默认按当前用户安装；缺少 WebView2 时安装器会联网补装。产物位于 `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`。当前流程仅用于本机验证，不上传文件。
+该命令生成未签名的 Windows 11 x64 NSIS 安装包，默认按当前用户安装；缺少 WebView2 时安装器会联网补装。产物位于 `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`。脚本附带许可证、构建安装包并生成稳定文件名与 SHA-256，产物另存于 `release/<版本>/`，不会自行上传。
 
 ## 发布 DMG
 
@@ -39,7 +39,7 @@ pnpm release:mac
 
 制作镜像需要正常的 macOS 磁盘镜像服务；受限制的沙箱环境可能禁止挂载或创建镜像。脚本不申请 Apple 证书、不执行公证，也不上传文件。公开发布使用经过验证的 `release:mac` 产物。
 
-图标源文件为 `public/brand/icon.svg`。使用 `pnpm tauri icon public/brand/icon.svg --output <临时目录>` 重新生成 ICNS/PNG 后，将 macOS 所需文件同步到 `src-tauri/icons/` 和 `public/brand/icon.png`。
+图标源文件为 `public/brand/icon.svg`。使用 `pnpm tauri icon public/brand/icon.svg --output <临时目录>` 重新生成 ICNS/PNG 后，将 ICNS、ICO 和 PNG 同步到 `src-tauri/icons/` 和 `public/brand/icon.png`。
 
 ## 代码结构
 
@@ -57,3 +57,9 @@ pnpm release:mac
 保留了 `scripts/fixtures.py`、`native_perf.py` 等复现工具。样本必须由 fixtures.py 创建；生成器拒绝覆盖未标记的目录，压力写入只能针对它自己生成的样本。普通单元测试会验证完整 Markdown Worker 语料；解析时间不代表原生窗口的完整交互延迟。
 
 当前版本没有完成正式的大规模原生交互性能验收，不作固定帧率、P95 延迟或空闲资源占用承诺。公开试用不以重跑长性能矩阵为前提。
+
+## GitHub Windows 构建
+
+在 Actions 中手动运行 `Windows release build`。工作流只有仓库读取权限：安装依赖、运行前后端检查、构建 NSIS、静默安装到临时目录、确认原生窗口可启动与正常退出、核对示例源文件未变更，然后卸载。产物 `windows-x64-release` 包含安装包、校验和及 `windows-smoke.json`。这是 Windows Server 2022 自动冒烟，不替代 Windows 11 完整交互验收。
+
+正式发布时核对构建提交与版本标签一致，将 macOS DMG 和 Windows EXE 上传同一草稿 Release，生成合并的 `SHA256SUMS.txt`，检查资产后再发布。不要覆盖已发布版本的同名资产。

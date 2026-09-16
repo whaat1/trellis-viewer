@@ -1,14 +1,22 @@
 # 安装 Trellis Viewer
 
-当前发布包适用于 **macOS 12 或更新版本、Apple Silicon（M 系列芯片）**。首版主要在 macOS 26 上验证，其他兼容系统欢迎反馈。Intel、Windows 和 Linux 暂未提供经过验证的发行包。
+当前提供 **macOS 12+ Apple Silicon（M 系列芯片）** 和 **Windows x64** 安装包。Windows 面向 Windows 11 x64；自动构建和安装启动冒烟使用 Windows Server 2022，不代表完整的 Windows 11 人工交互验收。macOS Intel 和 Linux 暂无发行包。
 
-## 下载与安装
+## macOS 下载与安装
 
-1. 在 [GitHub Releases](https://github.com/whaat1/trellis-viewer/releases/latest) 下载 `Trellis-Viewer_0.1.0_aarch64.dmg`。
+1. 在 [GitHub Releases](https://github.com/whaat1/trellis-viewer/releases/latest) 下载 `Trellis-Viewer_0.1.1_aarch64.dmg`。
 2. 双击 DMG，将 **Trellis Viewer.app** 拖到 **Applications（应用程序）**。
 3. 从“应用程序”打开 Trellis Viewer。安装后可推出磁盘映像。
 
 Release 中的 `Source code (zip)` 是源码，不能当作应用直接运行。
+
+## Windows 下载与安装
+
+1. 在 [GitHub Releases](https://github.com/whaat1/trellis-viewer/releases/latest) 下载 `Trellis-Viewer_0.1.1_x64-setup.exe`。
+2. 运行安装程序，按提示安装；默认只为当前用户安装。
+3. 从开始菜单打开 Trellis Viewer。缺少 Microsoft WebView2 时，安装程序需要联网安装运行时。
+
+Windows 安装包尚未签名，系统可能显示未知发布者提示。请核对仓库来源与 SHA-256；如果安全软件报告威胁，先停止安装并反馈，不要关闭系统保护。可在 Windows“设置 → 应用”中卸载。
 
 ## 首次打开被 macOS 拦截
 
@@ -20,13 +28,19 @@ Release 中的 `Source code (zip)` 是源码，不能当作应用直接运行。
 
 ## 校验下载文件
 
-将 DMG 与 Release 中的 `SHA256SUMS.txt` 放在同一目录，在该目录打开终端运行：
+在 Release 的 `SHA256SUMS.txt` 中找到与你下载文件同名的一行。macOS 在终端计算：
 
 ```sh
-shasum -a 256 -c SHA256SUMS.txt
+shasum -a 256 Trellis-Viewer_0.1.1_aarch64.dmg
 ```
 
-对应文件应显示 `OK`。校验值用于确认下载文件一致，不等同于 Apple 公证。
+Windows 在 PowerShell 中计算：
+
+```powershell
+Get-FileHash .\Trellis-Viewer_0.1.1_x64-setup.exe -Algorithm SHA256
+```
+
+计算值应与校验文件一致。校验值用于确认下载文件一致，不等同于开发者签名或 Apple 公证。
 
 ## 三步上手
 
@@ -39,9 +53,9 @@ shasum -a 256 -c SHA256SUMS.txt
 ## 本地数据与升级
 
 - 导入项目只读；应用不修改任务状态、不归档任务、不执行项目脚本。
-- 项目登记、配色与排期保存在 `~/Library/Application Support/local.trellis.viewer/`。
+- 项目登记、配色与排期：macOS 保存在 `~/Library/Application Support/local.trellis.viewer/`，Windows 保存在 `%APPDATA%\local.trellis.viewer\`。
 - 阅读区布局等界面偏好由本地 WebView 保存。
-- 升级前退出应用，再用新版本替换“应用程序”中的旧版本。应用标识保持不变，已有项目和排期继续使用。
+- 升级前退出应用；macOS 替换“应用程序”中的旧版本，Windows 运行新安装包。应用标识保持不变，已有项目和排期继续使用。
 - 卸载应用本体不会自动删除上述设置目录。备份该目录可保留项目登记与排期。
 
 ## 当前限制
@@ -61,4 +75,4 @@ shasum -a 256 -c SHA256SUMS.txt
 
 菜单支持方向键选择、Enter 执行、Escape 关闭。右键非当前项目不会切换当前项目。已移除项目的排期不再展示在日历中；移动目录后以新路径添加不会自动恢复旧身份。
 
-源码现已支持 Windows 11 x64 NSIS 构建（见[开发与构建](development.md)）。项目移除、恢复和排序可用；右键菜单中的 Finder 定位和复制路径目前仅在 macOS 可用，Windows 中禁用这两项。现有 0.1.0 下载包不包含尚未重新打包的源码更新。
+Windows 项目移除、恢复和排序可用；右键菜单中的 Finder 定位和复制路径目前仅在 macOS 可用，Windows 中禁用这两项。

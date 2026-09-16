@@ -1,6 +1,6 @@
 # Third-party notices
 
-Trellis Viewer is MIT licensed. The following dependency notices retain their original terms. This inventory includes installed production JavaScript dependencies and resolved Rust dependencies for the Apple Silicon build (including build/test tooling). Platform system frameworks are supplied by macOS.
+Trellis Viewer is MIT licensed. The following dependency notices retain their original terms. This inventory includes installed production JavaScript dependencies and resolved Rust dependencies for the Apple Silicon build (including build/test tooling). Windows-specific Rust notices are additionally generated and included as THIRD_PARTY_NOTICES_WINDOWS.md in the Windows installer. Platform system frameworks are supplied by the operating system.
 
 ## npm: @fullcalendar/core 6.1.21
 
@@ -48643,3 +48643,33 @@ Some crates do not package a top-level license file. Their manifest license decl
 - **unic-common 0.9.0** — `MIT/Apache-2.0`. Authors: The UNIC Project Developers. Source: https://crates.io/api/v1/crates/unic-common/0.9.0/download. Repository: https://github.com/open-i18n/rust-unic/.
 - **unic-ucd-ident 0.9.0** — `MIT/Apache-2.0`. Authors: The UNIC Project Developers. Source: https://crates.io/api/v1/crates/unic-ucd-ident/0.9.0/download. Repository: https://github.com/open-i18n/rust-unic/.
 - **unic-ucd-version 0.9.0** — `MIT/Apache-2.0`. Authors: The UNIC Project Developers. Source: https://crates.io/api/v1/crates/unic-ucd-version/0.9.0/download. Repository: https://github.com/open-i18n/rust-unic/.
+
+## Windows WebView2 Rust bindings
+
+- **webview2-com 0.38.2** — `MIT`. Upstream license: https://github.com/wravery/webview2-rs/blob/b74dc5e2b394044bea5191052868ce7a106c202c/LICENSE
+- **webview2-com-sys 0.38.2** — `MIT`. Upstream license: https://github.com/wravery/webview2-rs/blob/b74dc5e2b394044bea5191052868ce7a106c202c/LICENSE
+- **webview2-com-macros 0.8.1** — `MIT`. Upstream license: https://github.com/wravery/webview2-rs/blob/dffa41a8a46d3f5565eefbff2de57d38d399f158/LICENSE
+
+```text
+MIT License
+
+Copyright (c) 2021 Bill Avery
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

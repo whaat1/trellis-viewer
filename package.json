@@ -1,6 +1,6 @@
 {
   "name": "trellis-viewer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
     "test": "vitest run",
     "tauri": "tauri",
     "release:mac": "python3 scripts/release_macos.py",
-    "release:windows": "tauri build --bundles nsis --target x86_64-pc-windows-msvc"
+    "release:windows": "python scripts/release_windows.py"
   },
   "dependencies": {
     "@fullcalendar/core": "6.1.21",

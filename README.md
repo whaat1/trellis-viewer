@@ -4,9 +4,9 @@
 
 **把 Trellis 的任务、文档和排期放到一个窗口里。**
 
-一个面向 macOS 的本地任务阅读与排期工具。切换多个项目，查看父子任务和 Markdown 文档，再用月历安排计划。源项目只读，配色与排期由应用独立保存。
+一个面向 macOS 和 Windows 的本地任务阅读与排期工具。切换多个项目，查看父子任务和 Markdown 文档，再用月历安排计划。源项目只读，配色与排期由应用独立保存。
 
-[下载 macOS 试用版](https://github.com/whaat1/trellis-viewer/releases/latest) · [安装说明](docs/installation.md) · [反馈问题](https://github.com/whaat1/trellis-viewer/issues)
+[下载 macOS / Windows 试用版](https://github.com/whaat1/trellis-viewer/releases/latest) · [安装说明](docs/installation.md) · [反馈问题](https://github.com/whaat1/trellis-viewer/issues)
 
 ![任务阅读视图](docs/images/tasks.png)
 
@@ -14,7 +14,7 @@
 
 - **集中阅读**：状态筛选、父子任务目录、Markdown 正文与自动刷新。
 - **看清进展**：子任务完成情况、项目状态分布和完成度；父任务作为分组，不重复计入执行任务数量。
-- **管理项目**：右键项目可从列表移除、在 Finder 中显示或复制完整路径。移除保留排期和配色，重新添加同一路径后恢复，不删除项目文件。
+- **管理项目**：项目支持拖拽排序和移除；macOS 还可从右键菜单在 Finder 中显示或复制完整路径。移除保留排期和配色，重新添加同一路径后恢复，不删除项目文件。
 - **安排计划**：跨项目月历，拖动任务安排日期、拖边缘调整天数、拖回右侧清除排期。
 - **按项目区分**：自定义项目颜色，日历沿用对应颜色。
 - **保留阅读习惯**：拖动分隔线调整布局，记住阅读位置。
@@ -25,25 +25,25 @@
 
 ## 下载与上手
 
-首版提供 **macOS Apple Silicon（M 系列芯片）DMG**，最低系统配置为 macOS 12，主要在 macOS 26 上验证。Intel、Windows 和 Linux 暂未提供经过验证的发行包。
+提供 **macOS Apple Silicon（M 系列芯片）DMG** 和 **Windows x64 安装包**。macOS 最低版本为 12；Windows 面向 Windows 11 x64。macOS Intel 和 Linux 暂无发行包。
 
-1. 从 [Releases](https://github.com/whaat1/trellis-viewer/releases/latest) 下载 DMG，把应用拖到 Applications。
+1. 从 [Releases](https://github.com/whaat1/trellis-viewer/releases/latest) 按系统下载 DMG 或 `x64-setup.exe`，然后按[安装说明](docs/installation.md)安装。
 2. 打开应用，添加包含 `.trellis/tasks` 的项目根目录。
 3. 选择任务阅读文档，或切换日历安排计划。
 
-**当前安装包尚未经过 Apple 公证。** 首次启动可能被 macOS 拦截，处理方式和校验方法见 [安装说明](docs/installation.md)。不需要 App Store，也不需要安装 Rust 或 Node.js 来运行下载的应用。
+**macOS 包尚未经过 Apple 公证，Windows 包尚未签名。** 首次启动可能被 macOS 拦截，处理方式和校验方法见 [安装说明](docs/installation.md)。不需要 App Store，也不需要安装 Rust 或 Node.js 来运行下载的应用。
 
 没有现成项目？下载源码后，导入 [examples/sample-project](examples/sample-project) 即可体验。
 
 ## 数据留在哪里
 
-导入项目只读：不修改任务状态、不归档任务、不执行项目脚本、不安装 Agent Hook。项目登记、配色和计划保存在应用自己的 `~/Library/Application Support/local.trellis.viewer/` 目录；界面偏好由本地 WebView 保存。任务内容无需上传服务端。
+导入项目只读：不修改任务状态、不归档任务、不执行项目脚本、不安装 Agent Hook。项目登记、配色和计划保存在应用自己的数据目录（[各系统路径](docs/installation.md#本地数据与升级)）；界面偏好由本地 WebView 保存。任务内容无需上传服务端。
 
-月历安排的是顶层父任务和独立任务；进度统计按末级执行任务计算，包含归档、排除取消，父任务不重复计数。
+月历可以安排父任务、子任务和独立任务；进度统计按末级执行任务计算，包含归档、排除取消，父任务不重复计数。
 
 ## 当前边界
 
-这是 `0.1.0` 公开试用版。图片预览、外链打开、自动更新、跨设备排期同步和任务主视图搜索暂未提供。日历的待安排列表支持搜索。完整的大规模原生性能验收尚未完成。
+这是 `0.1.1` 公开试用版。图片预览、外链打开、自动更新、跨设备排期同步和任务主视图搜索暂未提供。日历的待安排列表支持搜索。完整的大规模原生性能验收尚未完成。
 
 后续优先考虑任务搜索和文档图片预览，欢迎反馈实际使用场景。
 
