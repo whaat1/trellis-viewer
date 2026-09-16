@@ -1,6 +1,6 @@
 use crate::{
     contracts::TaskSummary,
-    paths::{contained, io, Result},
+    paths::{contained, io, key_from_path, Result},
 };
 use serde_json::Value;
 use std::{
@@ -88,11 +88,7 @@ pub fn enumerate_keys(root: &Path) -> Result<BTreeSet<String>> {
             let entry = entry.map_err(io)?;
             let path = entry.path();
             // Enumerate supported active and archive depths only; never descend task documents.
-            let relative = path
-                .strip_prefix(root)
-                .map_err(|e| e.to_string())?
-                .to_string_lossy()
-                .to_string();
+            let relative = key_from_path(path.strip_prefix(root).map_err(|e| e.to_string())?);
             let Ok(actual) = path.canonicalize() else {
                 continue;
             };
@@ -241,6 +237,16 @@ mod tests {
             assert!(archived.summary.archived);
             assert_eq!(archived.summary.status, expected);
         }
+    }
+    #[test]
+    fn enumerates_archive_keys_with_portable_separators() {
+        let dir = tempfile::tempdir().unwrap();
+        let task = dir.path().join("archive/2024-03/task");
+        fs::create_dir_all(&task).unwrap();
+        fs::write(task.join("task.json"), "{}").unwrap();
+        assert!(enumerate_keys(&dir.path().canonicalize().unwrap())
+            .unwrap()
+            .contains("archive/2024-03/task"));
     }
     #[test]
     fn resolves_directory_before_id_and_preserves_duplicate_ids() {
