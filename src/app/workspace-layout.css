@@ -1,5 +1,5 @@
 .workspace-panes {
-  --tasks-height: 240px;
+  --tasks-height: 180px;
   --tree-width: 260px;
   flex: 1;
   min-height: 0;

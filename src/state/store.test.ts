@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Changes, DocEntry, Invalidated, Snapshot } from '../generated/contracts';
-const mocks = vi.hoisted(() => ({ activate: vi.fn(), tree: vi.fn(), bootstrap: vi.fn(), subscribe: vi.fn(), changes: vi.fn(), snapshot: vi.fn() }));
+const mocks = vi.hoisted(() => ({ activate: vi.fn(), tree: vi.fn(), bootstrap: vi.fn(), subscribe: vi.fn(), changes: vi.fn(), snapshot: vi.fn(), removeProject: vi.fn() }));
 vi.mock('../bridge/api', () => ({ api: mocks, errorText: String, metrics: { staleResponses: 0, snapshotInstallMs: 0, patchCount: 0, upserts: 0, documentInvalidations: 0 } }));
-import { activateProject, ensureTree, initialize, selectDocument, selectRoot, toggleExpanded, useStore } from './store';
+import { activateProject, removeProject, ensureTree, initialize, selectDocument, selectRoot, toggleExpanded, useStore } from './store';
 function snapshot(projectId: string): Snapshot { return { projectId, epoch: 'session', revision: 1, tasks: [{ key: 'parent', title: 'Parent', status: 'planning', relativeDir: 'parent', parentKey: null, childKeys: ['child'], archived: false, revision: '1' }, { key: 'child', title: 'Child', status: 'planning', relativeDir: 'child', parentKey: 'parent', childKeys: [], archived: false, revision: '1' }], rootKeys: ['parent'], scanMs: 0, diagnostics: [] }; }
 beforeEach(() => { vi.clearAllMocks(); mocks.activate.mockImplementation(async (id: string) => snapshot(id)); mocks.tree.mockResolvedValue([]); useStore.setState({ projectId: '', index: null, selectedDoc: null, rootKey: '', docs: {}, expanded: new Set(), documentVersions: {}, documentReset: 0, treeVersions: {}, pendingRootKey: null, loading: false, error: '' }); });
 describe('resource races', () => {
@@ -191,25 +191,45 @@ it('ignores an old tree failure after its task is removed in the same project', 
   expect(useStore.getState().error).toBe('');
 });
 
-it('keeps root documents open and child-group toggles local while child expansion alone loads its documents', async () => {
+it('supports root and folder collapse while child expansion loads documents', async () => {
   mocks.tree.mockResolvedValue([entry('prd.md')]);
   await activateProject('tree-sections'); await settle();
   const before = useStore.getState();
-  toggleExpanded('task:parent'); toggleExpanded('folder:parent:research');
-  expect(useStore.getState()).toBe(before);
+  toggleExpanded('task:parent');
+  expect(useStore.getState().expanded.has('collapsed-task:parent')).toBe(true);
+  toggleExpanded('task:parent');
+  toggleExpanded('folder:parent:research');
+  expect(useStore.getState().expanded.has('folder:parent:research')).toBe(true);
   toggleExpanded('collapsed-children:parent');
-  expect(useStore.getState().expanded.has('task:parent')).toBe(true);
   expect(useStore.getState().selectedDoc).toBe(before.selectedDoc);
-  expect(mocks.tree).toHaveBeenCalledTimes(1);
-  toggleExpanded('collapsed-children:parent');
-  expect(mocks.tree).toHaveBeenCalledTimes(1);
   toggleExpanded('task:child', 'child'); await settle();
-  expect(mocks.tree).toHaveBeenCalledTimes(2);
   expect(mocks.tree).toHaveBeenLastCalledWith('tree-sections', 'child');
   selectDocument('child', 'prd.md');
-  const selected = useStore.getState().selectedDoc;
-  toggleExpanded('collapsed-children:parent');
-  selectDocument('child', 'prd.md');
   expect(useStore.getState().expanded.has('collapsed-children:parent')).toBe(false);
-  expect(useStore.getState().selectedDoc).toBe(selected);
+  expect(useStore.getState().expanded.has('task:child')).toBe(true);
+});
+
+it('removing an inactive project preserves the current reader', async () => {
+  await activateProject('keep'); await settle();
+  const before = useStore.getState();
+  mocks.removeProject.mockResolvedValue([{ id: 'keep', name: 'Keep', path: '/keep' }]);
+  await removeProject('other');
+  expect(useStore.getState().index).toBe(before.index);
+  expect(useStore.getState().projectId).toBe('keep');
+});
+it('removing the last project clears selection and rejects pending activation', async () => {
+  const pending = deferred<Snapshot>(); mocks.activate.mockReturnValueOnce(pending.promise);
+  const opening = activateProject('removed');
+  mocks.removeProject.mockResolvedValue([]);
+  await removeProject('removed'); pending.resolve(snapshot('removed')); await opening;
+  expect(useStore.getState()).toMatchObject({ projectId: '', index: null, selectedDoc: null, loading: false });
+});
+it('selecting the same document reveals its collapsed folder and root', async () => {
+  mocks.tree.mockResolvedValue([{ key: 'research/a.md', path: 'research/a.md', name: 'a.md' }]);
+  await activateProject('reveal'); await settle();
+  selectDocument('parent', 'research/a.md');
+  toggleExpanded('task:parent'); toggleExpanded('folder:parent:research');
+  selectDocument('parent', 'research/a.md');
+  expect(useStore.getState().expanded.has('collapsed-task:parent')).toBe(false);
+  expect(useStore.getState().expanded.has('folder:parent:research')).toBe(true);
 });

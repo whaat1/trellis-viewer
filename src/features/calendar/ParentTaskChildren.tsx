@@ -30,6 +30,6 @@ export function ParentTaskChildren({ details }: { details: ParentTaskDetails }) 
         </div>;
       })}</div>
     </div>
-    <p className="calendar-children-hint">完成情况随项目更新；包含归档任务，取消任务不计入完成度。</p>
+    <p className="calendar-children-hint">完成情况随项目更新；归档和取消任务不计入完成度。</p>
   </section>;
 }

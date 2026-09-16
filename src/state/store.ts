@@ -140,6 +140,24 @@ export async function addProject() {
     await activateProject(project.id);
   } catch (error) { useStore.setState({ error: errorText(error) }); }
 }
+export async function removeProject(projectId: string) {
+  try {
+    const projects = await api.removeProject(projectId);
+    memory.delete(projectId); pendingEvents.delete(projectId);
+    const wasActive = useStore.getState().projectId === projectId;
+    useStore.setState({ projects, error: '' });
+    if (wasActive) {
+      activation.cancel(); activating = undefined;
+      useStore.setState({ projectId: '', index: null, docs: {}, treeVersions: {}, rootKey: '', pendingRootKey: null, selectedDoc: null, expanded: new Set(), documentVersions: {}, loading: false });
+      if (projects[0]) await activateProject(projects[0].id);
+    }
+  } catch (error) { useStore.setState({ error: errorText(error) }); }
+}
+
+export async function reorderProjects(projectIds: string[]) {
+  try { const projects = await api.reorderProjects(projectIds); useStore.setState({ projects }); }
+  catch (error) { useStore.setState({ error: errorText(error) }); }
+}
 export function setFilter(filter: StatusFilter) { useStore.setState({ filter }); }
 export function selectRoot(rootKey: string) {
   const state = useStore.getState();
@@ -199,18 +217,34 @@ export async function ensureTree(taskKey: string, autoSelect = false) {
 }
 export function toggleExpanded(id: string, taskKey?: string) {
   const state = useStore.getState();
-  if (id === `task:${state.rootKey}` || id.startsWith(`folder:${state.rootKey}:`)) return;
+  const effectiveId = id === `task:${state.rootKey}` ? `collapsed-task:${state.rootKey}` : id;
   const expanded = new Set(state.expanded);
-  if (expanded.has(id)) expanded.delete(id); else { expanded.add(id); if (taskKey) void ensureTree(taskKey); }
+  if (effectiveId === `collapsed-task:${state.rootKey}`) { if (expanded.has(effectiveId)) expanded.delete(effectiveId); else expanded.add(effectiveId); }
+  else if (expanded.has(effectiveId)) expanded.delete(effectiveId); else { expanded.add(effectiveId); if (taskKey) void ensureTree(taskKey); }
   useStore.setState({ expanded });
 }
 export function selectDocument(taskKey: string, key: string) {
   const state = useStore.getState();
   const groupId = childGroupCollapseId(state.rootKey);
-  const reveal = taskKey !== state.rootKey && state.expanded.has(groupId);
-  const expansion = reveal ? { expanded: new Set([...state.expanded].filter(id => id !== groupId)) } : {};
+  const nextExpanded = new Set(state.expanded);
+  // Reveal the selected task and every ancestor in the task hierarchy.
+  if (taskKey !== state.rootKey) nextExpanded.delete(groupId);
+  const tasks = state.index?.tasks ?? {};
+  const parentOf = new Map<string, string>();
+  for (const task of Object.values(tasks)) for (const child of task.childKeys) parentOf.set(child, task.key);
+  if (taskKey === state.rootKey) nextExpanded.delete(`collapsed-task:${state.rootKey}`);
+  const visited = new Set<string>();
+  let cursor = taskKey;
+  while (cursor && cursor !== state.rootKey && !visited.has(cursor)) { visited.add(cursor); nextExpanded.add(`task:${cursor}`); cursor = parentOf.get(cursor) ?? ''; }
+  const entry = state.docs[taskKey]?.find(doc => doc.key === key);
+  if (entry) {
+    const parts = entry.path.split('/');
+    for (let i = 1; i < parts.length; i++) nextExpanded.add(`folder:${taskKey}:${parts.slice(0, i).join('/')}`);
+  }
+  const changed = nextExpanded.size !== state.expanded.size || [...nextExpanded].some(id => !state.expanded.has(id));
+  const expansion = changed ? { expanded: nextExpanded } : {};
   if (state.selectedDoc?.taskKey === taskKey && state.selectedDoc.key === key) {
-    if (state.pendingRootKey || reveal) useStore.setState({ pendingRootKey: null, ...expansion });
+    if (state.pendingRootKey || changed) useStore.setState({ pendingRootKey: null, ...expansion });
     return;
   }
   useStore.setState({ selectedDoc: { taskKey, key }, pendingRootKey: null, ...expansion });

@@ -37,7 +37,7 @@ export function shiftMonth(month: string, amount: number): string {
   return date.getFullYear() < 1 || date.getFullYear() > 9999 ? `${month.slice(0, 7)}-01` : localDate(date);
 }
 export function pendingTasks(tasks: TaskSummary[], scheduledKeys: ReadonlySet<string>) {
-  return tasks.filter(task => task.parentKey === null && !task.archived && !['completed', 'done', 'cancelled'].includes(task.status) && !scheduledKeys.has(task.key));
+  return tasks.filter(task => !task.archived && !['completed', 'done', 'cancelled'].includes(task.status) && !scheduledKeys.has(task.key));
 }
 
 export interface CalendarChildRow {
@@ -73,5 +73,5 @@ export function parentTaskDetails(parent: TaskSummary, taskMap: ReadonlyMap<stri
   return { rows, progress: projectProgress(descendants), missingCount, repeatedCount };
 }
 export function calendarTaskEditable(task?: TaskSummary): boolean {
-  return !!task && task.parentKey === null && task.status !== 'cancelled';
+  return !!task && task.status !== 'cancelled';
 }

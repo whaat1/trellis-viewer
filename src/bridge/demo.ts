@@ -10,7 +10,18 @@ const snapshot: Snapshot = { projectId: project.id, epoch: 'demo', revision: 1, 
 const secondProject: Project = { id: 'calendar-browser-demo', name: '产品改版 · 演示', path: '/explicit-demo/product' };
 const secondTasks = tasks.slice(0, 10).map((task, i) => ({ ...task, title: ['产品改版', '梳理用户流程', '绘制原型', '接口联调', '验收新版本'][i % 5] + (i >= 5 ? ' · 第二阶段' : ''), archived: false, status: i === 2 || i === 4 ? 'completed' : i < 5 ? 'in_progress' : 'planning' }));
 secondTasks.push({ key: '09-12-independent', relativeDir: '09-12-independent', title: '发布检查', parentKey: null, childKeys: [], status: 'planning', archived: false, revision: 'demo-1' });
-const demoProjects = [project, secondProject];
+let demoProjects = [project, secondProject];
+try {
+  const ids: unknown = JSON.parse(localStorage.getItem('trellis.demo.projects.v1') || 'null');
+  if (Array.isArray(ids) && ids.every(id => typeof id === 'string' && demoProjects.some(project => project.id === id)) && new Set(ids).size === ids.length) {
+    demoProjects = ids.map(id => demoProjects.find(project => project.id === id)!);
+  }
+} catch { /* A demo registry can start with the sample projects. */ }
+function persistProjects(next: Project[]) {
+  localStorage.setItem('trellis.demo.projects.v1', JSON.stringify(next.map(project => project.id)));
+  demoProjects = next;
+  return structuredClone(next);
+}
 const demoDate = (offset: number) => {
   const date = new Date(); date.setDate(date.getDate() + offset);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -43,9 +54,22 @@ function content(key: string, projectId: unknown) {
 }
 export async function demoInvoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   let result: unknown;
+  if (['activate_project', 'get_project_snapshot', 'get_calendar_project'].includes(command) && !demoProjects.some(project => project.id === args.projectId)) throw new Error('PROJECT_UNAVAILABLE: unregistered project');
   switch (command) {
     case 'get_bootstrap': result = { epoch: 'demo', projects: demoProjects, autoBenchmark: false, autoBenchmarkRepeats: 1, autoBenchmarkSeconds: 60 }; break;
-    case 'choose_and_add_project': result = project; break;
+    case 'choose_and_add_project': {
+      if (!demoProjects.some(candidate => candidate.id === project.id)) persistProjects([...demoProjects, project]);
+      result = structuredClone(project); break;
+    }
+    case 'remove_project': {
+      if (!demoProjects.some(project => project.id === args.projectId)) throw new Error('PROJECT_UNAVAILABLE: unregistered project');
+      result = persistProjects(demoProjects.filter(project => project.id !== args.projectId)); break;
+    }
+    case 'reorder_projects': {
+      const ids = args.projectIds;
+      if (!Array.isArray(ids) || ids.length !== demoProjects.length || new Set(ids).size !== ids.length || ids.some(id => !demoProjects.some(project => project.id === id))) throw new Error('INVALID_PROJECT_ORDER: projects must be a complete permutation');
+      result = persistProjects(ids.map(id => demoProjects.find(project => project.id === id)!)); break;
+    }
     case 'activate_project': case 'get_project_snapshot': result = args.projectId === secondProject.id ? { ...snapshot, projectId: secondProject.id, tasks: secondTasks, rootKeys: secondTasks.filter(task => !task.parentKey).map(task => task.key) } : snapshot; break;
     case 'get_project_changes': result = { projectId: project.id, epoch: 'demo', baseRevision: 1, revision: 1, resetRequired: false, upserts: [], removed: [], rootKeys: null, documentTaskKeys: [], diagnostics: [] }; break;
     case 'get_document_tree': result = docs; break;
@@ -68,7 +92,7 @@ export async function demoInvoke<T>(command: string, args: Record<string, unknow
       const source = (input.projectId === secondProject.id ? secondTasks : tasks).find(task => task.key === input.taskKey);
       const remaining = plannerSettings.schedules.filter(entry => entry.id !== existing?.id);
       if (!clearing) {
-        if (!input.startDate || !input.endDate || !validRange(input.startDate, input.endDate) || !source || source.parentKey !== null || source.status === 'cancelled') throw new Error('请选择有效的父任务或独立任务及起止日期');
+        if (!input.startDate || !input.endDate || !validRange(input.startDate, input.endDate) || !source || source.status === 'cancelled') throw new Error('请选择有效任务及起止日期');
         if (existing && existing.taskKey !== input.taskKey) throw new Error('排期无法关联到该任务');
         if (remaining.some(entry => entry.projectId === input.projectId && entry.taskKey === input.taskKey)) throw new Error('任务已有其他排期');
         remaining.push({ id: existing?.id ?? crypto.randomUUID(), projectId: input.projectId, taskKey: input.taskKey, title: source.title, startDate: input.startDate, endDate: input.endDate });

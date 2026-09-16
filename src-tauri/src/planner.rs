@@ -135,10 +135,8 @@ impl Planner {
             .iter()
             .find(|task| task.key == input.task_key)
             .ok_or("TASK_NOT_FOUND: task is missing or unresolved")?;
-        if task.parent_key.is_some() || task.status == "cancelled" {
-            return Err(
-                "INVALID_SCHEDULE: only non-cancelled top-level tasks can be scheduled".into(),
-            );
+        if task.status == "cancelled" {
+            return Err("INVALID_SCHEDULE: cancelled tasks cannot be scheduled".into());
         }
         let old_index = if let Some(id) = &input.id {
             let index = settings
@@ -480,14 +478,9 @@ mod tests {
         assert_eq!(moved.schedules[0].task_key, moved_key);
     }
     #[test]
-    fn top_level_and_project_boundaries_and_missing_history_clear() {
+    fn cancellation_and_project_boundaries_and_missing_history_clear() {
         let (_source, _data, project, mut planner) = fixture();
         let mut calendar = scan_project(&project).unwrap();
-        calendar.tasks[0].parent_key = Some("parent".into());
-        assert!(planner
-            .update(input(None, "09-12-task"), &project, &calendar)
-            .is_err());
-        calendar.tasks[0].parent_key = None;
         calendar.tasks[0].status = "cancelled".into();
         assert!(planner
             .update(input(None, "09-12-task"), &project, &calendar)
@@ -508,7 +501,7 @@ mod tests {
         assert!(planner.clear(&clear).unwrap().schedules.is_empty());
     }
     #[test]
-    fn schedules_parents_and_preserves_old_child_history_until_cleared() {
+    fn schedules_parents_and_children_and_preserves_source_files() {
         let (source, _data, project, mut planner) = fixture();
         let original = planner
             .update(
@@ -534,20 +527,12 @@ mod tests {
                 .child_keys,
             vec!["09-12-task"]
         );
-        assert!(planner
-            .update(input(None, "09-12-task"), &project, &calendar)
-            .is_err());
-        assert!(planner
-            .update(
-                input(Some(original.schedules[0].id.clone()), "09-12-task"),
-                &project,
-                &calendar
-            )
-            .is_err());
-        assert_eq!(
-            planner.settings().unwrap().schedules[0].start_date,
-            "2024-02-29"
-        );
+        let mut moved = input(Some(original.schedules[0].id.clone()), "09-12-task");
+        moved.start_date = Some("2024-03-01".into());
+        moved.end_date = Some("2024-03-04".into());
+        let changed = planner.update(moved, &project, &calendar).unwrap();
+        assert_eq!(changed.schedules[0].start_date, "2024-03-01");
+        assert_eq!(changed.schedules[0].end_date, "2024-03-04");
         let saved = planner
             .update(input(None, "parent"), &project, &calendar)
             .unwrap();
@@ -562,6 +547,11 @@ mod tests {
         let saved = planner.clear(&clear).unwrap();
         assert_eq!(saved.schedules.len(), 1);
         assert_eq!(saved.schedules[0].task_key, "parent");
+        let recreated = planner
+            .update(input(None, "09-12-task"), &project, &calendar)
+            .unwrap();
+        assert_eq!(recreated.schedules.len(), 2);
+        assert_ne!(recreated.schedules[1].id, original.schedules[0].id);
         assert_eq!(
             fs::read_to_string(root.join("parent/task.json")).unwrap(),
             parent

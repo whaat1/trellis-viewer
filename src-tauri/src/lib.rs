@@ -112,6 +112,40 @@ async fn choose_and_add_project(
     .await
 }
 #[tauri::command]
+async fn remove_project(
+    project_id: String,
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<Project>> {
+    let state = state.inner().clone();
+    blocking(move || {
+        let _serial = state.activation_lock.lock().map_err(poisoned)?;
+        let mut storage = state.storage.lock().map_err(poisoned)?;
+        let mut active = state.active.lock().map_err(poisoned)?;
+        storage.remove(&project_id)?;
+        if active
+            .as_ref()
+            .is_some_and(|current| current.project.id == project_id)
+        {
+            *active = None;
+        }
+        Ok(storage.projects.clone())
+    })
+    .await
+}
+#[tauri::command]
+async fn reorder_projects(
+    project_ids: Vec<String>,
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<Project>> {
+    let state = state.inner().clone();
+    blocking(move || {
+        let mut storage = state.storage.lock().map_err(poisoned)?;
+        storage.reorder(&project_ids)?;
+        Ok(storage.projects.clone())
+    })
+    .await
+}
+#[tauri::command]
 async fn activate_project(
     project_id: String,
     app: tauri::AppHandle,
@@ -120,6 +154,7 @@ async fn activate_project(
     let state = state.inner().clone();
     let generation = state.generation.fetch_add(1, Ordering::AcqRel) + 1;
     blocking(move || {
+        let _serial = state.activation_lock.lock().map_err(poisoned)?;
         let project = state
             .storage
             .lock()
@@ -129,7 +164,6 @@ async fn activate_project(
             .find(|p| p.id == project_id)
             .cloned()
             .ok_or("PROJECT_UNAVAILABLE: unregistered project")?;
-        let _serial = state.activation_lock.lock().map_err(poisoned)?;
         if state.generation.load(Ordering::Acquire) != generation {
             return Err("STALE_RESOURCE: activation superseded".into());
         }
@@ -410,6 +444,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_bootstrap,
             choose_and_add_project,
+            remove_project,
+            reorder_projects,
             activate_project,
             get_project_snapshot,
             get_project_changes,

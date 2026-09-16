@@ -28,6 +28,8 @@ export const api = {
   },
   bootstrap: () => call<Bootstrap>('get_bootstrap'),
   addProject: () => call<Project | null>('choose_and_add_project'),
+  removeProject: (projectId: string) => call<Project[]>('remove_project', { projectId }),
+  reorderProjects: (projectIds: string[]) => call<Project[]>('reorder_projects', { projectIds }),
   activate: (projectId: string) => call<Snapshot>('activate_project', { projectId }),
   snapshot: (projectId: string) => call<Snapshot>('get_project_snapshot', { projectId }),
   changes: (projectId: string, sinceRevision: number) => call<Changes>('get_project_changes', { projectId, sinceRevision }),

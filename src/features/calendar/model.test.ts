@@ -26,24 +26,24 @@ function task(key: string, options: Partial<TaskSummary> = {}): TaskSummary {
 }
 function details(root: TaskSummary, descendants: TaskSummary[]) { return parentTaskDetails(root, new Map([root, ...descendants].map(item => [item.key, item]))); }
 
-it('offers only unscheduled top-level parents and independent tasks, including unknown active states', () => {
+it('offers unscheduled active tasks, including child tasks and unknown states', () => {
   const tasks = [task('parent', { childKeys: ['child'] }), task('child', { parentKey: 'parent' }), task('nested-parent', { parentKey: 'parent', childKeys: ['nested'] }), task('independent'), task('done', { status: 'done' }), task('completed', { status: 'completed' }), task('cancelled', { status: 'cancelled' }), task('archived', { archived: true }), task('unknown', { status: 'legacy' }), task('scheduled')];
-  expect(pendingTasks(tasks, new Set(['scheduled'])).map(item => item.key)).toEqual(['parent', 'independent', 'unknown']);
+  expect(pendingTasks(tasks, new Set(['scheduled'])).map(item => item.key)).toEqual(['parent', 'child', 'nested-parent', 'independent', 'unknown']);
 });
-it('allows dates for top-level parents and independent tasks but keeps old child schedules read-only', () => {
+it('allows dates for active parent and child tasks while keeping cancelled tasks read-only', () => {
   expect(calendarTaskEditable(task('parent', { childKeys: ['child'] }))).toBe(true);
   expect(calendarTaskEditable(task('independent'))).toBe(true);
-  expect(calendarTaskEditable(task('child', { parentKey: 'parent' }))).toBe(false);
-  expect(calendarTaskEditable(task('nested', { parentKey: 'parent', childKeys: ['leaf'] }))).toBe(false);
+  expect(calendarTaskEditable(task('child', { parentKey: 'parent' }))).toBe(true);
+  expect(calendarTaskEditable(task('nested', { parentKey: 'parent', childKeys: ['leaf'] }))).toBe(true);
   expect(calendarTaskEditable(task('cancelled', { status: 'cancelled' }))).toBe(false);
   expect(calendarTaskEditable(undefined)).toBe(false);
   expect(calendarTaskEditable(task('history', { status: 'completed', archived: true }))).toBe(true);
 });
-it('preserves multiple child levels and counts only terminal descendants, including archived unfinished work', () => {
+it('preserves multiple child levels and counts only terminal descendants, excluding archived work from progress', () => {
   const root = task('root', { status: 'completed', childKeys: ['group', 'archived-pending', 'cancelled'] });
   const result = details(root, [task('group', { status: 'completed', childKeys: ['done', 'archive-done'] }), task('done', { status: 'done' }), task('archive-done', { status: 'completed', archived: true }), task('archived-pending', { archived: true }), task('cancelled', { status: 'cancelled', archived: true })]);
   expect(result.rows.map(row => [row.key, row.depth])).toEqual([['group', 0], ['done', 1], ['archive-done', 1], ['archived-pending', 0], ['cancelled', 0]]);
-  expect(result.progress).toMatchObject({ completed: 2, total: 3, percent: 66 });
+  expect(result.progress).toMatchObject({ completed: 1, total: 1, percent: 100 });
   expect(result.rows.at(-1)?.task).toMatchObject({ status: 'cancelled', archived: true });
 });
 it('does not claim completion for empty or entirely cancelled children', () => {

@@ -1,3 +1,4 @@
+import { snapTaskHeight } from './layout-sizing';
 import { useCallback, useLayoutEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { TaskArea, TaskTree } from '../features/tasks/TaskArea';
 import { Reader } from '../features/documents/Reader';
@@ -5,9 +6,10 @@ import './workspace-layout.css';
 
 type Axis = 'top' | 'tree';
 type Sizes = Record<Axis, number>;
-const defaults: Sizes = { top: 240, tree: 260 };
+const defaults: Sizes = { top: 180, tree: 260 };
 const storageKey = 'trellis.viewer.panes.v1';
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
+
 
 export function WorkspaceLayout() {
   const container = useRef<HTMLDivElement>(null);
@@ -19,7 +21,7 @@ export function WorkspaceLayout() {
   const pending = useRef<{ axis: Axis; value: number } | null>(null);
   const frame = useRef(0);
 
-  const bounds = useCallback((axis: Axis) => {
+  const bounds = useCallback((axis: Axis): [number, number] => {
     const element = container.current;
     if (!element) return [0, 0];
     if (axis === 'tree') return [180, Math.max(180, element.clientWidth - 327)];
@@ -66,7 +68,9 @@ export function WorkspaceLayout() {
   }
   function end(event: PointerEvent<HTMLDivElement>) {
     if (!drag.current || event.pointerId !== drag.current.pointerId) return;
-    flush(); drag.current = null; restoreCursor(); delete event.currentTarget.dataset.dragging; save();
+    flush();
+    if (drag.current.axis === 'top') apply('top', snapTaskHeight(sizes.current.top, ...bounds('top')));
+    drag.current = null; restoreCursor(); delete event.currentTarget.dataset.dragging; save();
   }
   function key(event: KeyboardEvent<HTMLDivElement>, axis: Axis) {
     const previous = axis === 'top' ? 'ArrowUp' : 'ArrowLeft';
@@ -74,7 +78,8 @@ export function WorkspaceLayout() {
     if (![previous, next, 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
     const [min, max] = bounds(axis);
-    apply(axis, event.key === 'Home' ? min : event.key === 'End' ? max : sizes.current[axis] + (event.key === previous ? -1 : 1) * (event.shiftKey ? 40 : 16));
+    const value = event.key === 'Home' ? min : event.key === 'End' ? max : sizes.current[axis] + (event.key === previous ? -1 : 1) * (axis === 'top' ? 72 : event.shiftKey ? 40 : 16);
+    apply(axis, axis === 'top' ? snapTaskHeight(value, min, max) : value);
     save();
   }
   useLayoutEffect(() => {
@@ -84,7 +89,7 @@ export function WorkspaceLayout() {
         if (typeof saved?.[axis] === 'number' && Number.isFinite(saved[axis])) sizes.current[axis] = saved[axis]!;
       }
     } catch { /* Ignore invalid saved dimensions. */ }
-    const resize = () => { apply('top', sizes.current.top); apply('tree', sizes.current.tree); };
+    const resize = () => { if (!drag.current) apply('top', snapTaskHeight(sizes.current.top, ...bounds('top'))); apply('tree', sizes.current.tree); };
     resize();
     const observer = new ResizeObserver(resize);
     if (container.current) {
@@ -94,7 +99,7 @@ export function WorkspaceLayout() {
       for (const element of container.current.querySelectorAll('.task-area-heading, .project-status-legend')) observer.observe(element);
     }
     return () => { observer.disconnect(); cancelAnimationFrame(frame.current); restoreCursor(); };
-  }, [apply]);
+  }, [apply, bounds]);
 
   const dividerProps = (axis: Axis) => ({
     role: 'separator' as const, tabIndex: 0,
@@ -104,7 +109,7 @@ export function WorkspaceLayout() {
     onPointerDown: (event: PointerEvent<HTMLDivElement>) => start(event, axis),
     onPointerMove: move, onPointerUp: end, onPointerCancel: end, onLostPointerCapture: end,
     onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => key(event, axis),
-    onDoubleClick: () => { apply(axis, defaults[axis]); save(); },
+    onDoubleClick: () => { apply(axis, axis === 'top' ? bounds('top')[0] : defaults[axis]); save(); },
   });
   return <div ref={container} className="workspace-panes">
     <div className="task-pane"><TaskArea/></div>
