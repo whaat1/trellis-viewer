@@ -50,19 +50,24 @@ describe('flattened task/document tree', () => {
     expanded.delete(childGroupCollapseId('parent'));
     expect(flattenTree(index.tasks, 'parent', docs, expanded).some(row => row.label === 'child.md')).toBe(true);
   });
-  it('counts terminal descendants across levels exactly once, excluding archived and cancelled work', () => {
+  it('counts direct children including archived, cancelled and parent tasks independently of expansion', () => {
     const tasks = { parent: task('parent', ['group', 'archived', 'cancelled', 'done']), group: task('group', ['done', 'nested']), done: { ...task('done'), status: 'done' }, nested: { ...task('nested'), status: 'completed', archived: true }, archived: { ...task('archived'), archived: true }, cancelled: { ...task('cancelled'), status: 'cancelled' } };
     const folded = flattenTree(tasks, 'parent', {}, new Set([childGroupCollapseId('parent')]));
-    expect(folded.find(row => row.kind === 'children')?.summary).toEqual({ completed: 1, total: 1, missing: 0 });
+    expect(folded.find(row => row.kind === 'children')?.summary).toEqual({ completed: 1, total: 4, missing: 0 });
     const open = flattenTree(tasks, 'parent', {}, new Set(['task:parent', 'task:group']));
-    expect(open.find(row => row.kind === 'children')?.label).toBe('子任务（1/1）');
+    expect(open.find(row => row.kind === 'children')?.label).toBe('子任务（1/4）');
     expect(open.filter(row => row.kind === 'task').map(row => [row.taskKey, row.depth])).toEqual([['parent', 0], ['group', 1], ['done', 2], ['nested', 2], ['archived', 1], ['cancelled', 1]]);
+  });
+  it('counts archived completed children and completed child parents without counting grandchildren twice', () => {
+    const tasks = { root: task('root', ['group', 'archive', 'cancelled', 'archive']), group: { ...task('group', ['leaf']), status: 'completed' }, leaf: task('leaf'), archive: { ...task('archive'), archived: true, status: 'done' }, cancelled: { ...task('cancelled'), status: 'cancelled' } };
+    const rows = flattenTree(tasks, 'root', {}, new Set(['collapsed-task:root', childGroupCollapseId('root')]));
+    expect(rows.find(row => row.kind === 'children')).toMatchObject({ label: '子任务（2/3）', summary: { completed: 2, total: 3, missing: 0 } });
   });
   it('terminates cycles, reports missing references, and does not invent a child group for an independent task', () => {
     const tasks = { a: task('a', ['b', 'missing']), b: task('b', ['a', 'b']) };
     const rows = flattenTree(tasks, 'a', {}, new Set(['task:a', 'task:b']));
     expect(rows.filter(row => row.kind === 'task').map(row => row.taskKey)).toEqual(['a', 'b']);
-    expect(rows.find(row => row.kind === 'children')?.summary).toEqual({ completed: 0, total: 0, missing: 1 });
+    expect(rows.find(row => row.kind === 'children')?.summary).toEqual({ completed: 0, total: 2, missing: 1 });
     expect(flattenTree({ solo: task('solo') }, 'solo', { solo: [file('prd.md')] }, new Set(['task:solo'])).map(row => row.kind)).toEqual(['task', 'document']);
   });
 });
@@ -71,7 +76,7 @@ it('request tokens reject stale results after cancel or a newer selection', () =
   expect(requests.current(first)).toBe(false); expect(requests.current(second)).toBe(true);
   requests.cancel(); expect(requests.current(second)).toBe(false);
 });
-describe('project completion across active terminal tasks', () => {
+describe('project completion across all terminal tasks', () => {
   it('reaches 100% when nested leaves and independent tasks complete regardless of group statuses', () => {
     const result = projectProgress({
       parent: task('parent', ['group', 'child']), group: task('group', ['nested']),
@@ -79,16 +84,16 @@ describe('project completion across active terminal tasks', () => {
       nested: { ...task('nested'), status: 'completed', archived: true },
       independent: { ...task('independent'), status: 'done' },
     });
-    expect(result).toEqual({ total: 2, completed: 2, percent: 100, statusCounts: { completed: 2 } });
+    expect(result).toEqual({ total: 3, completed: 3, percent: 100, statusCounts: { completed: 2, archived: 1 } });
   });
-  it('excludes archived tasks from the denominator and status counts', () => {
+  it('counts archived tasks without treating unfinished archives as completed', () => {
     const result = projectProgress({
       parent: { ...task('parent', ['done', 'unfinished']), status: 'completed', archived: true },
       done: { ...task('done'), archived: true, status: 'completed' },
       unfinished: { ...task('unfinished'), archived: true },
       review: { ...task('review'), status: 'review' },
     });
-    expect(result).toEqual({ total: 1, completed: 0, percent: 0, statusCounts: { review: 1 } });
+    expect(result).toEqual({ total: 3, completed: 1, percent: 33, statusCounts: { archived: 2, review: 1 } });
   });
   it('does not claim completion for no tasks or round unfinished work up to 100%', () => {
     expect(projectProgress().percent).toBe(0);
@@ -99,10 +104,10 @@ describe('project completion across active terminal tasks', () => {
     const cancelled = { ...task('cancelled'), archived: true, status: 'cancelled' };
     const finished = Object.fromEntries(Array.from({ length: 67 }, (_, i) => [String(i), { ...task(String(i)), archived: true, status: 'completed' }]));
     const tasks = { ...finished, cancelled, liveCancelled: { ...task('liveCancelled'), status: 'cancelled' } };
-    expect(projectProgress(tasks)).toEqual({ total: 0, completed: 0, percent: 0, statusCounts: {} });
+    expect(projectProgress(tasks)).toEqual({ total: 67, completed: 67, percent: 100, statusCounts: { archived: 67 } });
     expect(tasks.cancelled).toBe(cancelled);
     expect(tasks.cancelled.status).toBe('cancelled');
     expect(projectProgress({ cancelled })).toEqual({ total: 0, completed: 0, percent: 0, statusCounts: {} });
-    expect(projectProgress({ ...tasks, unknown: { ...task('unknown'), archived: true, status: 'unknown' } }).total).toBe(0);
+    expect(projectProgress({ ...tasks, unknown: { ...task('unknown'), archived: true, status: 'unknown' } }).total).toBe(68);
   });
 });

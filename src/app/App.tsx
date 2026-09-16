@@ -18,6 +18,9 @@ function Workspace() {
   const settings = usePlanner(state => state.settings); const saving = usePlanner(state => state.saving); const plannerError = usePlanner(state => state.error || state.settingsError);
   const [view, setView] = useState<'tasks' | 'calendar'>(() => { try { return localStorage.getItem('trellis.viewer.view') === 'calendar' ? 'calendar' : 'tasks'; } catch { return 'tasks'; } });
   const navigation = useRef(0);
+  const draggedProject = useRef('');
+  const [projectDropTarget, setProjectDropTarget] = useState('');
+  function clearProjectDrag() { draggedProject.current = ''; setProjectDropTarget(''); }
   function changeView(next: 'tasks' | 'calendar') { navigation.current++; setView(next); try { localStorage.setItem('trellis.viewer.view', next); } catch { /* View works without saved preference. */ } }
   async function openTask(project: string, key: string) {
     changeView('tasks'); const ticket = navigation.current;
@@ -46,7 +49,23 @@ function Workspace() {
     </nav>
     {view === 'tasks' && <aside className="projects" aria-label="项目列表"><div className="brand"><span>Trellis<small>任务阅读器</small></span></div><div className="projects-label">项目 <button className="icon-button" onClick={() => void addProject()} aria-label="添加项目"><WorkspaceIcon name="plus"/></button></div><nav className="project-list">{projects.map(item => {
       const color = getProjectColor(item.id, settings);
-      return <div draggable className={`project-navigation-row ${item.id === projectId ? 'active' : ''}`} key={item.id} onDragStart={event => event.dataTransfer.setData('text/project-id', item.id)} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const from = event.dataTransfer.getData('text/project-id'); if (!from || from === item.id) return; const ids = projects.map(p => p.id); const a = ids.indexOf(from), b = ids.indexOf(item.id); if (a < 0 || b < 0) return; ids.splice(a, 1); ids.splice(b, 0, from); void reorderProjects(ids); }}>
+      const sourceIndex = projects.findIndex(project => project.id === draggedProject.current);
+      const dropEdge = projectDropTarget === item.id ? sourceIndex < projects.indexOf(item) ? 'after' : 'before' : undefined;
+      return <div draggable className={`project-navigation-row ${item.id === projectId ? 'active' : ''}`} key={item.id} data-drop-edge={dropEdge}
+        onDragStart={event => { draggedProject.current = item.id; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/project-id', item.id); }}
+        onDragOver={event => {
+          if (!projects.some(project => project.id === draggedProject.current) || draggedProject.current === item.id) { setProjectDropTarget(''); return; }
+          event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setProjectDropTarget(item.id);
+        }}
+        onDragLeave={event => { if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return; setProjectDropTarget(current => current === item.id ? '' : current); }}
+        onDragEnd={clearProjectDrag}
+        onDrop={event => {
+          event.preventDefault(); const from = draggedProject.current; clearProjectDrag();
+          if (!from || from === item.id) return;
+          const ids = projects.map(p => p.id); const a = ids.indexOf(from), b = ids.indexOf(item.id);
+          if (a < 0 || b < 0) return;
+          ids.splice(a, 1); ids.splice(b, 0, from); void reorderProjects(ids);
+        }}>
         <button className={`project-item ${item.id === projectId ? 'active' : ''}`} style={{ '--project-color': color } as CSSProperties} onClick={() => { navigation.current++; void activateProject(item.id); }} title={item.path}><span className="project-symbol" style={{ color }}>{item.name.slice(0, 1).toUpperCase()}</span><span>{item.name}</span></button>
         <ProjectColorPicker name={item.name} color={color} disabled={saving} onChange={value => setProjectColor(item.id, value)}/>
         <button aria-label={`移除项目 ${item.name}`} onClick={() => void removeProject(item.id)}>×</button>

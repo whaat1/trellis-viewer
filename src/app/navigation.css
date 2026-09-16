@@ -24,3 +24,7 @@
 .project-color-options button { width: 26px; height: 26px; border-radius: 50%; color: white; font-size: 14px; }
 .project-color-options button[aria-pressed=true] { outline: 2px solid var(--ink); outline-offset: 2px; }
 .calendar-loading { display: grid; place-items: center; flex: 1; color: var(--muted); }
+
+.project-navigation-row[data-drop-edge]::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: #5271a8; pointer-events: none; z-index: 1; }
+.project-navigation-row[data-drop-edge="before"]::after { top: 0; }
+.project-navigation-row[data-drop-edge="after"]::after { bottom: 0; }

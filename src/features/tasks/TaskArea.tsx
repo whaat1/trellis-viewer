@@ -24,7 +24,7 @@ export function TaskArea() {
   const tasks = useMemo(() => filter === 'all' ? roots : roots.filter(task => taskStatus(task) === filter), [roots, filter]);
   const entities = index?.tasks;
   const progress = useMemo(() => projectProgress(entities), [entities]);
-  const completionExplanation = `整体完成度：已完成 ${progress.completed} 项 ÷ 有效任务 ${progress.total} 项。仅统计最末级子任务和独立任务；父任务只作分组，不重复计数。已归档和已取消任务不参与统计。`;
+  const completionExplanation = `整体完成度：已完成 ${progress.completed} 项 ÷ 有效任务 ${progress.total} 项。仅统计最末级子任务和独立任务；父任务只作分组，不重复计数。包含归档任务，按原始完成状态计算；已取消任务不参与统计。`;
   const statusDescription = PROJECT_STATUS_GROUPS.filter(([key]) => progress.statusCounts[key]).map(([key, label]) => `${label} ${progress.statusCounts[key]}`).join('，');
   useEffect(() => { const element = scroll.current; if (!element) return; const observer = new ResizeObserver(([entry]) => setColumns(Math.max(1, Math.floor((entry.contentRect.width + 8) / (MIN_CARD_WIDTH + 8))))); observer.observe(element); return () => observer.disconnect(); }, []);
   const virtual = useVirtualizer({ count: Math.ceil(tasks.length / columns), getScrollElement: () => scroll.current, estimateSize: () => TASK_ROW_HEIGHT, overscan: 2 });
@@ -35,12 +35,12 @@ export function TaskArea() {
       <div className="status-tabs" role="tablist" aria-label="任务状态筛选" title="筛选父任务与独立任务，数量只统计顶层任务">{statuses.map(([key, label]) => <button key={key} role="tab" aria-selected={filter === key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)} data-status-filter={key}>{label}<span>{counts[key] ?? 0}</span></button>)}</div>
     </div>
     <div className="project-task-progress">
-      <div className="project-status-meter" role="img" aria-label={`实际任务状态（不含归档、取消及分组）：${statusDescription || '暂无任务'}`} title={statusDescription || '暂无任务'}>
+      <div className="project-status-meter" role="img" aria-label={`实际任务状态（含归档，不含取消及分组）：${statusDescription || '暂无任务'}`} title={statusDescription || '暂无任务'}>
         {PROJECT_STATUS_GROUPS.filter(([key]) => progress.statusCounts[key]).map(([key, label]) => <span key={key} className={`project-status-segment status-${key}`} style={{ width: `${progress.statusCounts[key] / progress.total * 100}%` }} title={`${label} ${progress.statusCounts[key]}`}/>)}
       </div>
       <span className="project-completion" role="meter" aria-label="项目整体完成度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent} aria-valuetext={`${progress.percent}% 已完成`} title={completionExplanation}><strong>{progress.percent}%</strong><span>完成</span></span>
     </div>
-    <div className="project-status-legend" aria-label="实际任务状态数量（不含归档、取消及分组）" title={completionExplanation}>
+    <div className="project-status-legend" aria-label="实际任务状态数量（含归档，不含取消及分组）" title={completionExplanation}>
       {PROJECT_STATUS_GROUPS.filter(([key]) => progress.statusCounts[key]).map(([key, label]) => <span key={key}><i className={`status-dot status-${key}`}/>{label}<b>{progress.statusCounts[key]}</b></span>)}
       {!progress.total && <span>暂无任务</span>}
     </div>
@@ -85,7 +85,7 @@ function ProjectTaskTree({ projectId }: { projectId: string }) {
         const cancelled = childTask && task?.status === 'cancelled';
         const status = `${completed ? '已完成' : cancelled ? '已取消' : '未完成'}${task?.archived ? ' · 已归档' : ''}`;
         const Row = row.expandable || row.kind === 'document' ? 'button' : 'div';
-        const hint = row.summary ? `已完成 ${row.summary.completed} / 有效末级任务 ${row.summary.total}；归档和取消任务不计入。${row.summary.missing ? `另有 ${row.summary.missing} 项子任务暂不可用。` : ''}` : childTask ? `${row.label} · ${status}` : row.label;
+        const hint = row.summary ? `已完成 ${row.summary.completed} / 直属子任务总数 ${row.summary.total}；包含归档和取消任务，已完成按任务状态计算。${row.summary.missing ? `另有 ${row.summary.missing} 项子任务暂不可用。` : ''}` : childTask ? `${row.label} · ${status}` : row.label;
         return <Row key={row.id} role="treeitem" aria-level={row.depth + 1} aria-expanded={row.expandable ? row.open : undefined} aria-selected={row.kind === 'document' ? active : undefined} className={`tree-row ${row.kind} ${active ? 'active' : ''} ${row.taskKey === rootKey && row.kind === 'task' ? 'is-root' : ''} ${completed ? 'is-completed' : ''} ${cancelled ? 'is-cancelled' : ''}`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 36, paddingLeft: 14 + row.depth * 16, transform: `translateY(${item.start}px)`, boxShadow: dropTarget === row.id ? `inset 0 ${rows.findIndex(candidate => candidate.id === dragged.current?.id) < item.index ? '-2px' : '2px'} 0 #5271a8` : undefined }} title={`${hint}${row.sortScope ? ' · 拖动排序，或按 Alt+↑/↓' : ''}`} draggable={!!row.sortScope}
           onDragStart={row.sortScope ? event => { dragged.current = row; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', row.id); } : undefined}
           onDragOver={event => { if (dragged.current?.sortScope && dragged.current.sortScope === row.sortScope && dragged.current.id !== row.id) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDropTarget(row.id); const element = scroll.current; if (element) { const bounds = element.getBoundingClientRect(); if (event.clientY < bounds.top + 36) element.scrollTop -= 18; else if (event.clientY > bounds.bottom - 36) element.scrollTop += 18; } } }}

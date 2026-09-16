@@ -39,11 +39,11 @@ it('allows dates for active parent and child tasks while keeping cancelled tasks
   expect(calendarTaskEditable(undefined)).toBe(false);
   expect(calendarTaskEditable(task('history', { status: 'completed', archived: true }))).toBe(true);
 });
-it('preserves multiple child levels and counts only terminal descendants, excluding archived work from progress', () => {
+it('preserves multiple child levels and counts only terminal descendants, including archived work in progress', () => {
   const root = task('root', { status: 'completed', childKeys: ['group', 'archived-pending', 'cancelled'] });
   const result = details(root, [task('group', { status: 'completed', childKeys: ['done', 'archive-done'] }), task('done', { status: 'done' }), task('archive-done', { status: 'completed', archived: true }), task('archived-pending', { archived: true }), task('cancelled', { status: 'cancelled', archived: true })]);
   expect(result.rows.map(row => [row.key, row.depth])).toEqual([['group', 0], ['done', 1], ['archive-done', 1], ['archived-pending', 0], ['cancelled', 0]]);
-  expect(result.progress).toMatchObject({ completed: 1, total: 1, percent: 100 });
+  expect(result.progress).toMatchObject({ completed: 2, total: 3, percent: 66 });
   expect(result.rows.at(-1)?.task).toMatchObject({ status: 'cancelled', archived: true });
 });
 it('does not claim completion for empty or entirely cancelled children', () => {

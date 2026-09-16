@@ -34,8 +34,8 @@ export function projectProgress(tasks: Record<string, TaskSummary> = {}) {
   const statusCounts: Record<string, number> = {};
   for (const task of Object.values(tasks)) {
     // Parents are groups; explicitly cancelled work is outside the delivery scope.
-    // Archived records remain visible as history, but are excluded from delivery progress.
-    if (task.archived || task.childKeys.length || task.status === 'cancelled') continue;
+    // Archive location alone neither excludes a task nor makes it complete.
+    if (task.childKeys.length || task.status === 'cancelled') continue;
     total++;
     const status = taskStatus(task);
     const bucket = projectStatusGroups.some(([key]) => key === status) ? status : 'unknown';
@@ -92,22 +92,11 @@ export function flattenTree(tasks: Record<string, TaskSummary>, root: string, do
   rows.push({ id: `task:${root}`, label: rootTask.title, depth: 0, kind: 'task', taskKey: root, expandable: true, open: rootOpen });
   if (rootOpen) addDocuments(root, 0);
   if (!rootTask.childKeys.length) return rows;
-  // Count all known terminal descendants once, independent of UI expansion.
-  // Root/group rows are presentation only and never enter projectProgress.
-  const descendants: Record<string, TaskSummary> = Object.create(null);
-  const counted = new Set([root]);
-  const counting = [...rootTask.childKeys];
-  let missing = 0;
-  while (counting.length) {
-    const key = counting.pop()!;
-    if (counted.has(key)) continue;
-    counted.add(key);
-    const task = tasks[key];
-    if (!task) { missing++; continue; }
-    descendants[key] = task;
-    for (const child of task.childKeys) counting.push(child);
-  }
-  const { completed, total } = projectProgress(descendants);
+  // This is a child-list count, independent of project delivery progress.
+  const children = [...new Set(rootTask.childKeys)].filter(key => key !== root);
+  const total = children.length;
+  const completed = children.filter(key => ['completed', 'done'].includes(tasks[key]?.status)).length;
+  const missing = children.filter(key => !tasks[key]).length;
   const groupOpen = !expanded.has(childGroupCollapseId(root));
   rows.push({ id: `children:${root}`, label: `子任务（${completed}/${total}）`, depth: 0, kind: 'children', taskKey: root, expandable: true, open: groupOpen, summary: { completed, total, missing } });
   if (!groupOpen) return rows;
