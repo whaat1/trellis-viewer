@@ -10,7 +10,7 @@ const snapshot: Snapshot = { projectId: project.id, epoch: 'demo', revision: 1, 
 const secondProject: Project = { id: 'calendar-browser-demo', name: '产品改版 · 演示', path: '/explicit-demo/product' };
 const secondTasks = tasks.slice(0, 10).map((task, i) => ({ ...task, title: ['产品改版', '梳理用户流程', '绘制原型', '接口联调', '验收新版本'][i % 5] + (i >= 5 ? ' · 第二阶段' : ''), archived: false, status: i === 2 || i === 4 ? 'completed' : i < 5 ? 'in_progress' : 'planning' }));
 secondTasks.push({ key: '09-12-independent', relativeDir: '09-12-independent', title: '发布检查', parentKey: null, childKeys: [], status: 'planning', archived: false, revision: 'demo-1' });
-const demoProjects = [project, secondProject];
+let demoProjects = [project, secondProject];
 const demoDate = (offset: number) => {
   const date = new Date(); date.setDate(date.getDate() + offset);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -45,7 +45,18 @@ export async function demoInvoke<T>(command: string, args: Record<string, unknow
   let result: unknown;
   switch (command) {
     case 'get_bootstrap': result = { epoch: 'demo', projects: demoProjects, autoBenchmark: false, autoBenchmarkRepeats: 1, autoBenchmarkSeconds: 60 }; break;
-    case 'choose_and_add_project': result = project; break;
+    case 'choose_and_add_project':
+      if (!demoProjects.some(item => item.id === project.id)) demoProjects = [...demoProjects, project];
+      result = project; break;
+    case 'remove_project':
+      demoProjects = demoProjects.filter(item => item.id !== args.projectId);
+      result = [...demoProjects]; break;
+    case 'reveal_project': throw new Error('浏览器演示无法在 Finder 中显示，请在桌面应用使用。');
+    case 'copy_project_path': {
+      const target = demoProjects.find(item => item.id === args.projectId);
+      if (!target) throw new Error('项目暂不可用');
+      await navigator.clipboard.writeText(target.path); break;
+    }
     case 'activate_project': case 'get_project_snapshot': result = args.projectId === secondProject.id ? { ...snapshot, projectId: secondProject.id, tasks: secondTasks, rootKeys: secondTasks.filter(task => !task.parentKey).map(task => task.key) } : snapshot; break;
     case 'get_project_changes': result = { projectId: project.id, epoch: 'demo', baseRevision: 1, revision: 1, resetRequired: false, upserts: [], removed: [], rootKeys: null, documentTaskKeys: [], diagnostics: [] }; break;
     case 'get_document_tree': result = docs; break;

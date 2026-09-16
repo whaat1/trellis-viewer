@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Changes, DocEntry, Invalidated, Snapshot } from '../generated/contracts';
-const mocks = vi.hoisted(() => ({ activate: vi.fn(), tree: vi.fn(), bootstrap: vi.fn(), subscribe: vi.fn(), changes: vi.fn(), snapshot: vi.fn() }));
+const mocks = vi.hoisted(() => ({ activate: vi.fn(), tree: vi.fn(), bootstrap: vi.fn(), subscribe: vi.fn(), changes: vi.fn(), snapshot: vi.fn(), removeProject: vi.fn(), addProject: vi.fn() }));
 vi.mock('../bridge/api', () => ({ api: mocks, errorText: String, metrics: { staleResponses: 0, snapshotInstallMs: 0, patchCount: 0, upserts: 0, documentInvalidations: 0 } }));
-import { activateProject, ensureTree, initialize, selectDocument, selectRoot, toggleExpanded, useStore } from './store';
+import { removeProject, addProject, activateProject, ensureTree, initialize, selectDocument, selectRoot, toggleExpanded, useStore } from './store';
 function snapshot(projectId: string): Snapshot { return { projectId, epoch: 'session', revision: 1, tasks: [{ key: 'parent', title: 'Parent', status: 'planning', relativeDir: 'parent', parentKey: null, childKeys: ['child'], archived: false, revision: '1' }, { key: 'child', title: 'Child', status: 'planning', relativeDir: 'child', parentKey: 'parent', childKeys: [], archived: false, revision: '1' }], rootKeys: ['parent'], scanMs: 0, diagnostics: [] }; }
 beforeEach(() => { vi.clearAllMocks(); mocks.activate.mockImplementation(async (id: string) => snapshot(id)); mocks.tree.mockResolvedValue([]); useStore.setState({ projectId: '', index: null, selectedDoc: null, rootKey: '', docs: {}, expanded: new Set(), documentVersions: {}, documentReset: 0, treeVersions: {}, pendingRootKey: null, loading: false, error: '' }); });
 describe('resource races', () => {
@@ -212,4 +212,52 @@ it('keeps root documents open and child-group toggles local while child expansio
   selectDocument('child', 'prd.md');
   expect(useStore.getState().expanded.has('collapsed-children:parent')).toBe(false);
   expect(useStore.getState().selectedDoc).toBe(selected);
+});
+
+
+describe('project removal', () => {
+  const project = (id: string) => ({ id, name: id, path: `/${id}` });
+  it('preserves selection on failure and when another project is removed', async () => {
+    useStore.setState({ projects: [project('remove-other'), project('keep-current')] });
+    await activateProject('keep-current');
+    mocks.removeProject.mockRejectedValueOnce(new Error('disk full'));
+    await expect(removeProject('remove-other')).rejects.toThrow('disk full');
+    expect(useStore.getState().projects).toHaveLength(2);
+    mocks.removeProject.mockResolvedValueOnce([project('keep-current')]);
+    await removeProject('remove-other');
+    expect(useStore.getState().projectId).toBe('keep-current');
+    expect(useStore.getState().projects.map(p => p.id)).toEqual(['keep-current']);
+  });
+  it('switches to the first remaining project, then clears the last project', async () => {
+    useStore.setState({ projects: [project('first-remaining'), project('remove-current')] });
+    await activateProject('remove-current');
+    mocks.removeProject.mockResolvedValue([]);
+    await removeProject('remove-current');
+    expect(useStore.getState().projectId).toBe('first-remaining');
+    await removeProject('first-remaining');
+    expect(useStore.getState()).toMatchObject({ projectId: '', index: null, selectedDoc: null, projects: [], loading: false });
+  });
+  it('discards late activation after removal and permits restored identity', async () => {
+    const pending = deferred<Snapshot>();
+    useStore.setState({ projects: [project('restore-id')] });
+    mocks.activate.mockReturnValueOnce(pending.promise);
+    const activating = activateProject('restore-id');
+    mocks.removeProject.mockResolvedValue([]);
+    await removeProject('restore-id');
+    pending.resolve(snapshot('restore-id')); await activating;
+    expect(useStore.getState().index).toBeNull();
+    mocks.addProject.mockResolvedValue(project('restore-id'));
+    await addProject();
+    expect(useStore.getState().index?.projectId).toBe('restore-id');
+  });
+  it('respects a selection changed while removal is waiting for persistence', async () => {
+    useStore.setState({ projects: [project('waiting-remove'), project('chosen-during-save'), project('third')] });
+    await activateProject('waiting-remove');
+    const pending = deferred<ReturnType<typeof project>[]>();
+    mocks.removeProject.mockReturnValueOnce(pending.promise);
+    const removing = removeProject('waiting-remove');
+    await activateProject('chosen-during-save');
+    pending.resolve([]); await removing;
+    expect(useStore.getState().projectId).toBe('chosen-during-save');
+  });
 });

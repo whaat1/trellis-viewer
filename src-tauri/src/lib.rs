@@ -112,6 +112,98 @@ async fn choose_and_add_project(
     .await
 }
 #[tauri::command]
+async fn remove_project(
+    project_id: String,
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<Project>> {
+    let state = state.inner().clone();
+    blocking(move || {
+        let _serial = state.activation_lock.lock().map_err(poisoned)?;
+        // 等待已有日历扫描完成后清缓存，防止删除后旧扫描再次填回。
+        let _scan = state.calendar_scan.lock().map_err(poisoned)?;
+        let mut active = state.active.lock().map_err(poisoned)?;
+        let mut cache = state.calendar_cache.lock().map_err(poisoned)?;
+        let projects = state
+            .storage
+            .lock()
+            .map_err(poisoned)?
+            .remove(&project_id)?;
+        if active
+            .as_ref()
+            .is_some_and(|item| item.project.id == project_id)
+        {
+            *active = None; // Drop 会停止该项目的文件监听线程。
+        }
+        cache.remove(&project_id);
+        Ok(projects)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn reveal_project(project_id: String, state: State<'_, Arc<AppState>>) -> Result<()> {
+    let state = state.inner().clone();
+    blocking(move || {
+        let project = registered_project(&state, &project_id)?;
+        if !std::path::Path::new(&project.path).is_dir() {
+            return Err("项目目录不存在，无法在 Finder 中显示。".into());
+        }
+        #[cfg(target_os = "macos")]
+        {
+            // 路径作为独立参数传递，空格、中文或 shell 字符均不参与命令解释。
+            let status = std::process::Command::new("/usr/bin/open")
+                .arg("-R")
+                .arg(&project.path)
+                .status()
+                .map_err(paths::io)?;
+            if !status.success() {
+                return Err("无法在 Finder 中显示项目。".into());
+            }
+            Ok(())
+        }
+        #[cfg(not(target_os = "macos"))]
+        Err("在 Finder 中显示仅支持 macOS。".into())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn copy_project_path(project_id: String, state: State<'_, Arc<AppState>>) -> Result<()> {
+    let state = state.inner().clone();
+    blocking(move || {
+        let project = registered_project(&state, &project_id)?;
+        #[cfg(target_os = "macos")]
+        {
+            use std::io::Write;
+            use std::process::{Command, Stdio};
+            // 显式 UTF-8，防止桌面启动环境没有 locale 时损坏中文路径。
+            let mut child = Command::new("/usr/bin/pbcopy")
+                .env("LC_ALL", "en_US.UTF-8")
+                .stdin(Stdio::piped())
+                .spawn()
+                .map_err(paths::io)?;
+            let write = child
+                .stdin
+                .take()
+                .ok_or("无法连接剪贴板。")?
+                .write_all(project.path.as_bytes());
+            let status = child.wait().map_err(paths::io)?;
+            write.map_err(paths::io)?;
+            if !status.success() {
+                return Err("无法复制项目路径。".into());
+            }
+            Ok(())
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = project;
+            Err("复制项目路径仅支持 macOS。".into())
+        }
+    })
+    .await
+}
+
+#[tauri::command]
 async fn activate_project(
     project_id: String,
     app: tauri::AppHandle,
@@ -120,6 +212,8 @@ async fn activate_project(
     let state = state.inner().clone();
     let generation = state.generation.fetch_add(1, Ordering::AcqRel) + 1;
     blocking(move || {
+        // 登记查询与激活发布在同一串行边界，避免移除后的旧激活重新安装监听。
+        let _serial = state.activation_lock.lock().map_err(poisoned)?;
         let project = state
             .storage
             .lock()
@@ -129,7 +223,6 @@ async fn activate_project(
             .find(|p| p.id == project_id)
             .cloned()
             .ok_or("PROJECT_UNAVAILABLE: unregistered project")?;
-        let _serial = state.activation_lock.lock().map_err(poisoned)?;
         if state.generation.load(Ordering::Acquire) != generation {
             return Err("STALE_RESOURCE: activation superseded".into());
         }
@@ -313,6 +406,7 @@ fn calendar_project(state: &AppState, project: &Project, force: bool) -> Result<
     }
     // Serialize metadata scans independently of the active reader and project registry.
     let _scan = state.calendar_scan.lock().map_err(poisoned)?;
+    registered_project(state, &project.id)?;
     if let Some(cached) = state
         .calendar_cache
         .lock()
@@ -410,6 +504,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_bootstrap,
             choose_and_add_project,
+            remove_project,
+            reveal_project,
+            copy_project_path,
             activate_project,
             get_project_snapshot,
             get_project_changes,

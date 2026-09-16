@@ -8,6 +8,8 @@
 .view-rail button:hover { background: var(--hover); }
 .view-rail button.active { color: var(--accent); background: var(--accent-soft); }
 .project-list .project-navigation-row { display: flex; align-items: center; gap: 2px; position: relative; margin: 2px 0; padding-right: 4px; border-radius: 7px; }
+/* 项目行是操作入口，禁用 WebKit 右键选词及拖动选字；正文仍可正常选择。 */
+.project-list .project-navigation-row { -webkit-user-select: none; user-select: none; }
 .project-list .project-navigation-row.active { background: var(--surface); box-shadow: 0 1px 3px #1118270a; }
 .project-list .project-navigation-row:hover:not(.active) { background: var(--hover); }
 .project-list .project-navigation-row .project-item { flex: 1; min-width: 0; margin: 0; background: transparent; box-shadow: none; line-height: 20px; }

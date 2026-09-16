@@ -277,6 +277,10 @@ pub struct CalendarCache {
     entries: VecDeque<(Instant, CalendarProject)>,
 }
 impl CalendarCache {
+    pub fn remove(&mut self, project_id: &str) {
+        self.entries
+            .retain(|(_, project)| project.project_id != project_id);
+    }
     pub fn get(&mut self, project_id: &str, force: bool) -> Option<CalendarProject> {
         let position = self
             .entries

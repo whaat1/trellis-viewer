@@ -1,0 +1,13 @@
+.project-context-menu { position: fixed; z-index: 1000; min-width: 180px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; padding: 5px; border: 1px solid #d8ddd9; border-radius: 10px; background: #fff; box-shadow: 0 8px 28px #24362a24; }
+.project-context-menu button { display: block; width: 100%; padding: 9px 12px; border: 0; border-radius: 6px; background: transparent; color: #26382e; text-align: left; font: inherit; cursor: pointer; }
+.project-context-menu button:hover, .project-context-menu button:focus-visible { background: #edf2ee; outline: 2px solid #608e75; outline-offset: -2px; }
+.project-context-menu .project-remove-action { color: #a83832; }
+.project-remove-dialog { width: min(420px, calc(100vw - 40px)); padding: 24px; border: 1px solid #d8ddd9; border-radius: 14px; color: #26382e; background: #fff; box-shadow: 0 16px 60px #1d302a30; }
+.project-remove-dialog::backdrop { background: #14281f55; }
+.project-remove-dialog h2 { margin: 0 0 14px; font-size: 18px; overflow-wrap: anywhere; }
+.project-remove-dialog p { line-height: 1.7; font-size: 14px; }
+.project-remove-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.project-remove-buttons button { padding: 8px 18px; border: 1px solid #c8d1ca; border-radius: 7px; cursor: pointer; background: #fff; color: #26382e; font: inherit; }
+.project-remove-buttons .project-remove-confirm { background: #a83832; color: #fff; border-color: #a83832; }
+.project-remove-buttons button:disabled { opacity: .55; cursor: wait; }
+.project-remove-error { color: #a83832; overflow-wrap: anywhere; }

@@ -115,3 +115,17 @@ describe('calendar refresh isolation', () => {
     expect(planner.usePlanner.getState().error).toBe('');
   });
 });
+
+
+it('removal discards an in-flight calendar refresh but keeps saved settings', async () => {
+  const pending = deferred<CalendarProject>();
+  const settings = { projectColors: { 'project-1': '#123456' }, schedules: [entry] };
+  planner.usePlanner.setState({ settings });
+  mocks.calendarProject.mockReturnValueOnce(pending.promise);
+  const refreshing = planner.refreshCalendarProject('project-1');
+  planner.forgetCalendarProject('project-1');
+  pending.resolve({ projectId: 'project-1', tasks: [task(entry.taskKey)], diagnostics: [] });
+  await refreshing;
+  expect(planner.usePlanner.getState().projectData['project-1']).toBeUndefined();
+  expect(planner.usePlanner.getState().settings).toEqual(settings);
+});
